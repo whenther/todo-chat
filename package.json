@@ -28,7 +28,7 @@
   "dependencies": {
     "lodash": "^4.13.1",
     "immutable": "3.8.1",
-    "natural-language-commander": "0.0.5",
+    "natural-language-commander": "0.0.6",
     "react": "^15.1.0",
     "react-dom": "^15.1.0",
     "redux": "3.5.2"
