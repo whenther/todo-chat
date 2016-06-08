@@ -1,8 +1,11 @@
-import react = require('react');
-import Immutable = require('immutable');
-import NLC = require('natural-language-commander');
-import lodash = require('lodash');
+import angular = require('angular');
 
-const foo = () => console.log('successzzz!');
+import components from './components';
 
-foo();
+const app = angular.module('app', [
+  components
+]);
+
+angular.element(document).ready((): void => {
+  angular.bootstrap(document, [app.name]);
+});

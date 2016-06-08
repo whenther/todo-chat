@@ -1,10 +1,11 @@
 {
   "name": "todo-chat",
   "dependencies": {
-    "lodash": "registry:npm/lodash#4.0.0+20160416211519",
-    "react": "registry:npm/react#15.0.1+20160601175240"
+    "lodash": "registry:npm/lodash#4.0.0+20160416211519"
   },
   "globalDependencies": {
+    "angular": "registry:dt/angular#1.5.0+20160602160139",
+    "jquery": "registry:dt/jquery#1.10.0+20160417213236",
     "node": "registry:env/node#4.0.0+20160507210304"
   }
 }
