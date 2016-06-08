@@ -1,0 +1,21 @@
+chat-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.chat-box__message {
+  width: 100%;
+  padding: 10px;
+}
+
+.chat-box__message--bot {
+  text-align: right;
+  margin-left: 20px;
+  color: cornflowerblue;
+}
+
+.chat-box__message--user {
+  text-align: left;
+  margin-right: 20px;
+}
