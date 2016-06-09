@@ -1,17 +1,19 @@
-<div class="container">
-  <div class="row">
-    <div class="col-xs-12">
-      <h1>Todo Chat</h1>
+<div class="container todo-chat flex-column">
+  <div class="text-center">
+    <h1>Todo Chat</h1>
 
-      <p>A simple todo chat app, using natural-language-commander</p> 
-    </div>
+    <h4>A simple todo chat app</h4>
+
+    <p>
+      This is a demo of <a href="https://github.com/whenther/natural-language-commander">natural-language-commander</a>,
+      a library for building natural language interfaces to bots. It can store todo list items, display them, and mark
+      them as complete. To use it, just type a command in the box - hopefully it'll do what you expect it to!
+    </p> 
   </div>
 
-  <div clas="row">
-    <div class="col-xs-12">
-      <chat-box messages="$ctrl.messages"></chat-box>
-      <entry-box on-send="$ctrl.onSend(command)"></entry-box>
-    </div>
+  <div class="flex-fill flex-column">
+    <chat-box messages="$ctrl.messages" class="flex-fill"></chat-box>
+    <entry-box on-send="$ctrl.onSend(command)"></entry-box>
   </div>
   
 </div>

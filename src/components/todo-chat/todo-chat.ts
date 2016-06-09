@@ -1,4 +1,5 @@
 import lodash = require('lodash');
+
 import Bot from '../../services/bot';
 
 export interface IMessage {
@@ -12,9 +13,14 @@ export class TodoChatController {
   private bot: Bot;
 
   constructor(
-    private $scope
+    private $scope: ng.IScope,
+    private $element: JQuery
   ) {
     this.bot = new Bot(this.onRecieve);
+  }
+
+  $onInit() {
+    this.$element.find('textarea').focus();
   }
 
   /**
