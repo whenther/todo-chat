@@ -14,13 +14,28 @@ export class TodoChatController {
 
   constructor(
     private $scope: ng.IScope,
-    private $element: JQuery
+    private $sce
   ) {
+    'ngInject';
+
     this.bot = new Bot(this.onRecieve);
   }
 
   $onInit() {
-    this.$element.find('textarea').focus();
+    // Add welcome messages.
+    this.messages.push({
+      text: `
+        Hi! I'm todo bot, and a demo of natural-language-commander,
+        a library for building natural language interfaces to bots. I can store todo list items, display them, and mark
+        them as complete. Just type a command in the box - hopefully I'll do what you expect me to!
+      `,
+      fromBot: true
+    });
+
+    this.messages.push({
+      text: `So, what do you want to do?`,
+      fromBot: true
+    });
   }
 
   /**
