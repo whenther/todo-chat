@@ -16,8 +16,11 @@ export class EntryBoxController {
 
   public sendCommand(event: JQueryEventObject) {
     if (event.keyCode === 13) {
+      // Pass command up.
       this.onSend({command: this.command});
-
+      // Clear box.
+      this.command = '';
+      // Stop from adding linebreak.
       event.preventDefault();
     }
   }

@@ -13,8 +13,30 @@ class Bot {
       utterances: [
         'ping'
       ],
-      callback: () => {
-        this.send('Pong.');
+      callback: () => this.send('Pong.')
+    });
+
+    this.nlc.registerIntent({
+      intent: 'ADD',
+      slots: [
+        {
+          name: 'Item',
+          type: 'STRING'
+        }
+      ],
+      utterances: [
+        'add {Item} to my list',
+        'put {Item} to my list',
+        'add {Item} to the list',
+        'put {Item} to the list',
+        'add {Item} to my todo list',
+        'put {Item} on my todo list',
+        'add {Item} to the todo list',
+        'put {Item} on the todo list',
+        'remind me to {Item}'
+      ],
+      callback: (item) => {
+        this.send(`Okay, added ${item} to your list!`);
       }
     });
   }

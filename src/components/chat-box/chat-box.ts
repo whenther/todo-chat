@@ -19,9 +19,7 @@ export class ChatBoxController {
     // Scroll to bottom when a new message gets added.
     this.$scope.$watch(
       () => this.messages.length,
-      () => {
-        element.scrollTop = element.scrollHeight;
-      }
+      () => element.scrollTop = element.scrollHeight
     );
   }
 
