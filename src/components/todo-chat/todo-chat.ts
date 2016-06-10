@@ -47,6 +47,7 @@ export class TodoChatController {
       text: message,
       fromBot: true
     });
+    this.$scope.$apply();
   };
 
   /**
@@ -59,15 +60,7 @@ export class TodoChatController {
       fromUser: true
     });
 
-    this.bot.handleCommand(command).catch(() => {
-      // Handle bad messages.
-      this.messages.push({
-        text: 'What?',
-        fromBot: true
-      });
-
-      this.$scope.$apply();
-    });
+    this.bot.handleCommand(command);
   }
 }
 
