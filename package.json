@@ -9,7 +9,10 @@
     "start": "budo src/app.ts:app.js --live --open --dir ./src -- -p [ tsify ] -t [ babelify --presets [ es2015 ] --extensions .ts ] -t [ stringify --extensions [ .html ] ]",
     "build": "browserify src/app.ts -p [ tsify ] -t [ babelify --presets [ es2015 ] --extensions .ts .ts ]  -t [ stringify --extensions [ .html ] ] -o dist/app.js",
     "prebuild": "npm run clean && npm run copy && typings install",
-    "test": "mocha --opts ./mocha.opts"
+    "test": "mocha --opts ./mocha.opts",
+    "deploy": "npm run build && git subtree push --prefix dist origin gh-pages",
+    "predeploy": "mv .gitignore .gitignore-tmp && .mv .gitignore-deploy .gitignore",
+    "postdeploy": "mv .gitignore .gitignore-deploy && .mv .gitignore-tmp .gitignore"
   },
   "keywords": [
     "todo",
