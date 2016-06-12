@@ -91,9 +91,38 @@ class Bot {
         this.send(`Here's what's on your todo list:`);
 
         // List each item.
-        _.forEach(list, (item: string): void => {
-          this.send(item);
+        _.forEach(list, (item: string, index: number): void => {
+          this.send(`${index}: ${item}`);
         });
+      }
+    });
+
+    this.nlc.registerIntent({
+      intent: 'COMPLETE',
+      slots: [
+        {
+          name: 'Index',
+          type: 'NUMBER'
+        }
+      ],
+      utterances: [
+        'mark {Index} as complete',
+        'mark {Index} as completed',
+        'mark {Index} as finished',
+        'mark {Index} as done',
+        'I finished {Index}',
+        'I completed {Index}',
+        'complete {Index}',
+        'finish {Index}'
+      ],
+      callback: (index: number) => {
+        const removedItem: string = this.todo.removeItemByIndex(index);
+
+        if (removedItem) {
+          this.send(`Okay, marking "${removedItem}"" as complete`);
+        } else {
+          this.send(`Sorry, you don't have an item ${index}!`);
+        }
       }
     });
   }
