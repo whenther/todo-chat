@@ -50,9 +50,9 @@ class Bot {
         const success = this.todo.addItem(item);
 
         if (success) {
-          this.send(`Okay, added ${item} to your todo list!`);
+          this.send(`Okay, added "${item}" to your todo list!`);
         } else {
-          this.send(`Sorry, ${item} is already on your todo list!`);
+          this.send(`Sorry, "${item}" is already on your todo list!`);
         }
       }
     });
@@ -92,7 +92,7 @@ class Bot {
 
         // List each item.
         _.forEach(list, (item: string, index: number): void => {
-          this.send(`${index}: ${item}`);
+          this.send(`${index + 1}: ${item}`);
         });
       }
     });
@@ -116,10 +116,11 @@ class Bot {
         'finish {Index}'
       ],
       callback: (index: number) => {
-        const removedItem: string = this.todo.removeItemByIndex(index);
+        // Items start at 0, so subtract 1 from the user input.
+        const removedItem: string = this.todo.removeItemByIndex(index - 1);
 
         if (removedItem) {
-          this.send(`Okay, marking "${removedItem}"" as complete`);
+          this.send(`Okay, marking "${removedItem}" as complete`);
         } else {
           this.send(`Sorry, you don't have an item ${index}!`);
         }
