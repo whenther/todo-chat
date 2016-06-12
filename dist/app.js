@@ -47443,10 +47443,6 @@ var _stringify = _dereq_('babel-runtime/core-js/json/stringify');
 
 var _stringify2 = _interopRequireDefault(_stringify);
 
-var _setImmediate2 = _dereq_('babel-runtime/core-js/set-immediate');
-
-var _setImmediate3 = _interopRequireDefault(_setImmediate2);
-
 var _classCallCheck2 = _dereq_('babel-runtime/helpers/classCallCheck');
 
 var _classCallCheck3 = _interopRequireDefault(_classCallCheck2);
@@ -47537,33 +47533,29 @@ var NaturalLanguageCommander = function () {
             command = this.cleanCommand(command);
             /** Flag if there was a match */
             var foundMatch = false;
-            // Use setImmediate in node and FF, the slower setTimeout otherwise,
-            // to delay the resolve so this is always async.
-            var delay = typeof _setImmediate3.default === 'function' ? _setImmediate3.default : setTimeout;
-            delay(function () {
-                _.forEach(_this2.matchers, function (matcher) {
-                    var slotValues = _this2.checkCommandForMatch(command, matcher);
-                    if (slotValues) {
-                        var orderedSlots = _this2.getOrderedSlots(matcher.intent, slotValues);
-                        if (data) {
-                            // Add the data as the first arg, if specified.
-                            orderedSlots.unshift(data);
-                        }
-                        // Call the callback with the slot values in order.
-                        matcher.intent.callback.apply(null, orderedSlots);
-                        // Resolve with the intent name, for reference.
-                        deferred.resolve(matcher.intent.intent);
-                        // Flag that a match was found.
-                        foundMatch = true;
-                        // Exit early.
-                        return false;
+            // TODO: Use nextTick here.
+            _.forEach(this.matchers, function (matcher) {
+                var slotValues = _this2.checkCommandForMatch(command, matcher);
+                if (slotValues) {
+                    var orderedSlots = _this2.getOrderedSlots(matcher.intent, slotValues);
+                    if (data) {
+                        // Add the data as the first arg, if specified.
+                        orderedSlots.unshift(data);
                     }
-                });
-                // Reject if no matches.
-                if (!foundMatch) {
-                    deferred.reject();
+                    // Call the callback with the slot values in order.
+                    matcher.intent.callback.apply(null, orderedSlots);
+                    // Resolve with the intent name, for reference.
+                    deferred.resolve(matcher.intent.intent);
+                    // Flag that a match was found.
+                    foundMatch = true;
+                    // Exit early.
+                    return false;
                 }
             });
+            // Reject if no matches.
+            if (!foundMatch) {
+                deferred.reject();
+            }
             return deferred.promise;
         }
         /**
@@ -47819,7 +47811,7 @@ var NaturalLanguageCommander = function () {
 module.exports = NaturalLanguageCommander;
 
 
-},{"./lib/Deferred":2,"./lib/commonMistakes":3,"./lib/standardSlots":4,"babel-runtime/core-js/json/stringify":5,"babel-runtime/core-js/set-immediate":8,"babel-runtime/helpers/classCallCheck":9,"babel-runtime/helpers/createClass":10,"lodash":83}],2:[function(_dereq_,module,exports){
+},{"./lib/Deferred":2,"./lib/commonMistakes":3,"./lib/standardSlots":4,"babel-runtime/core-js/json/stringify":5,"babel-runtime/helpers/classCallCheck":8,"babel-runtime/helpers/createClass":9,"lodash":80}],2:[function(_dereq_,module,exports){
 "use strict";
 
 var _promise = _dereq_("babel-runtime/core-js/promise");
@@ -47847,7 +47839,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = Deferred;
 
 
-},{"babel-runtime/core-js/promise":7,"babel-runtime/helpers/classCallCheck":9}],3:[function(_dereq_,module,exports){
+},{"babel-runtime/core-js/promise":7,"babel-runtime/helpers/classCallCheck":8}],3:[function(_dereq_,module,exports){
 "use strict";
 
 var MISTAKES = {
@@ -48048,15 +48040,13 @@ exports.SLACK_ROOM = {
 };
 
 
-},{"lodash":83,"moment-timezone":85}],5:[function(_dereq_,module,exports){
+},{"lodash":80,"moment-timezone":82}],5:[function(_dereq_,module,exports){
 module.exports = { "default": _dereq_("core-js/library/fn/json/stringify"), __esModule: true };
-},{"core-js/library/fn/json/stringify":11}],6:[function(_dereq_,module,exports){
+},{"core-js/library/fn/json/stringify":10}],6:[function(_dereq_,module,exports){
 module.exports = { "default": _dereq_("core-js/library/fn/object/define-property"), __esModule: true };
-},{"core-js/library/fn/object/define-property":12}],7:[function(_dereq_,module,exports){
+},{"core-js/library/fn/object/define-property":11}],7:[function(_dereq_,module,exports){
 module.exports = { "default": _dereq_("core-js/library/fn/promise"), __esModule: true };
-},{"core-js/library/fn/promise":13}],8:[function(_dereq_,module,exports){
-module.exports = { "default": _dereq_("core-js/library/fn/set-immediate"), __esModule: true };
-},{"core-js/library/fn/set-immediate":14}],9:[function(_dereq_,module,exports){
+},{"core-js/library/fn/promise":12}],8:[function(_dereq_,module,exports){
 "use strict";
 
 exports.__esModule = true;
@@ -48066,7 +48056,7 @@ exports.default = function (instance, Constructor) {
     throw new TypeError("Cannot call a class as a function");
   }
 };
-},{}],10:[function(_dereq_,module,exports){
+},{}],9:[function(_dereq_,module,exports){
 "use strict";
 
 exports.__esModule = true;
@@ -48094,47 +48084,44 @@ exports.default = function () {
     return Constructor;
   };
 }();
-},{"../core-js/object/define-property":6}],11:[function(_dereq_,module,exports){
+},{"../core-js/object/define-property":6}],10:[function(_dereq_,module,exports){
 var core  = _dereq_('../../modules/_core')
   , $JSON = core.JSON || (core.JSON = {stringify: JSON.stringify});
 module.exports = function stringify(it){ // eslint-disable-line no-unused-vars
   return $JSON.stringify.apply($JSON, arguments);
 };
-},{"../../modules/_core":22}],12:[function(_dereq_,module,exports){
+},{"../../modules/_core":20}],11:[function(_dereq_,module,exports){
 _dereq_('../../modules/es6.object.define-property');
 var $Object = _dereq_('../../modules/_core').Object;
 module.exports = function defineProperty(it, key, desc){
   return $Object.defineProperty(it, key, desc);
 };
-},{"../../modules/_core":22,"../../modules/es6.object.define-property":77}],13:[function(_dereq_,module,exports){
+},{"../../modules/_core":20,"../../modules/es6.object.define-property":75}],12:[function(_dereq_,module,exports){
 _dereq_('../modules/es6.object.to-string');
 _dereq_('../modules/es6.string.iterator');
 _dereq_('../modules/web.dom.iterable');
 _dereq_('../modules/es6.promise');
 module.exports = _dereq_('../modules/_core').Promise;
-},{"../modules/_core":22,"../modules/es6.object.to-string":78,"../modules/es6.promise":79,"../modules/es6.string.iterator":80,"../modules/web.dom.iterable":81}],14:[function(_dereq_,module,exports){
-_dereq_('../modules/web.immediate');
-module.exports = _dereq_('../modules/_core').setImmediate;
-},{"../modules/_core":22,"../modules/web.immediate":82}],15:[function(_dereq_,module,exports){
+},{"../modules/_core":20,"../modules/es6.object.to-string":76,"../modules/es6.promise":77,"../modules/es6.string.iterator":78,"../modules/web.dom.iterable":79}],13:[function(_dereq_,module,exports){
 module.exports = function(it){
   if(typeof it != 'function')throw TypeError(it + ' is not a function!');
   return it;
 };
-},{}],16:[function(_dereq_,module,exports){
+},{}],14:[function(_dereq_,module,exports){
 module.exports = function(){ /* empty */ };
-},{}],17:[function(_dereq_,module,exports){
+},{}],15:[function(_dereq_,module,exports){
 module.exports = function(it, Constructor, name, forbiddenField){
   if(!(it instanceof Constructor) || (forbiddenField !== undefined && forbiddenField in it)){
     throw TypeError(name + ': incorrect invocation!');
   } return it;
 };
-},{}],18:[function(_dereq_,module,exports){
+},{}],16:[function(_dereq_,module,exports){
 var isObject = _dereq_('./_is-object');
 module.exports = function(it){
   if(!isObject(it))throw TypeError(it + ' is not an object!');
   return it;
 };
-},{"./_is-object":39}],19:[function(_dereq_,module,exports){
+},{"./_is-object":37}],17:[function(_dereq_,module,exports){
 // false -> Array#indexOf
 // true  -> Array#includes
 var toIObject = _dereq_('./_to-iobject')
@@ -48156,7 +48143,7 @@ module.exports = function(IS_INCLUDES){
     } return !IS_INCLUDES && -1;
   };
 };
-},{"./_to-index":67,"./_to-iobject":69,"./_to-length":70}],20:[function(_dereq_,module,exports){
+},{"./_to-index":65,"./_to-iobject":67,"./_to-length":68}],18:[function(_dereq_,module,exports){
 // getting tag from 19.1.3.6 Object.prototype.toString()
 var cof = _dereq_('./_cof')
   , TAG = _dereq_('./_wks')('toStringTag')
@@ -48180,16 +48167,16 @@ module.exports = function(it){
     // ES3 arguments fallback
     : (B = cof(O)) == 'Object' && typeof O.callee == 'function' ? 'Arguments' : B;
 };
-},{"./_cof":21,"./_wks":74}],21:[function(_dereq_,module,exports){
+},{"./_cof":19,"./_wks":72}],19:[function(_dereq_,module,exports){
 var toString = {}.toString;
 
 module.exports = function(it){
   return toString.call(it).slice(8, -1);
 };
-},{}],22:[function(_dereq_,module,exports){
+},{}],20:[function(_dereq_,module,exports){
 var core = module.exports = {version: '2.4.0'};
 if(typeof __e == 'number')__e = core; // eslint-disable-line no-undef
-},{}],23:[function(_dereq_,module,exports){
+},{}],21:[function(_dereq_,module,exports){
 // optional / simple context binding
 var aFunction = _dereq_('./_a-function');
 module.exports = function(fn, that, length){
@@ -48210,18 +48197,18 @@ module.exports = function(fn, that, length){
     return fn.apply(that, arguments);
   };
 };
-},{"./_a-function":15}],24:[function(_dereq_,module,exports){
+},{"./_a-function":13}],22:[function(_dereq_,module,exports){
 // 7.2.1 RequireObjectCoercible(argument)
 module.exports = function(it){
   if(it == undefined)throw TypeError("Can't call method on  " + it);
   return it;
 };
-},{}],25:[function(_dereq_,module,exports){
+},{}],23:[function(_dereq_,module,exports){
 // Thank's IE8 for his funny defineProperty
 module.exports = !_dereq_('./_fails')(function(){
   return Object.defineProperty({}, 'a', {get: function(){ return 7; }}).a != 7;
 });
-},{"./_fails":29}],26:[function(_dereq_,module,exports){
+},{"./_fails":27}],24:[function(_dereq_,module,exports){
 var isObject = _dereq_('./_is-object')
   , document = _dereq_('./_global').document
   // in old IE typeof document.createElement is 'object'
@@ -48229,12 +48216,12 @@ var isObject = _dereq_('./_is-object')
 module.exports = function(it){
   return is ? document.createElement(it) : {};
 };
-},{"./_global":31,"./_is-object":39}],27:[function(_dereq_,module,exports){
+},{"./_global":29,"./_is-object":37}],25:[function(_dereq_,module,exports){
 // IE 8- don't enum bug keys
 module.exports = (
   'constructor,hasOwnProperty,isPrototypeOf,propertyIsEnumerable,toLocaleString,toString,valueOf'
 ).split(',');
-},{}],28:[function(_dereq_,module,exports){
+},{}],26:[function(_dereq_,module,exports){
 var global    = _dereq_('./_global')
   , core      = _dereq_('./_core')
   , ctx       = _dereq_('./_ctx')
@@ -48296,7 +48283,7 @@ $export.W = 32;  // wrap
 $export.U = 64;  // safe
 $export.R = 128; // real proto method for `library` 
 module.exports = $export;
-},{"./_core":22,"./_ctx":23,"./_global":31,"./_hide":33}],29:[function(_dereq_,module,exports){
+},{"./_core":20,"./_ctx":21,"./_global":29,"./_hide":31}],27:[function(_dereq_,module,exports){
 module.exports = function(exec){
   try {
     return !!exec();
@@ -48304,7 +48291,7 @@ module.exports = function(exec){
     return true;
   }
 };
-},{}],30:[function(_dereq_,module,exports){
+},{}],28:[function(_dereq_,module,exports){
 var ctx         = _dereq_('./_ctx')
   , call        = _dereq_('./_iter-call')
   , isArrayIter = _dereq_('./_is-array-iter')
@@ -48330,17 +48317,17 @@ var exports = module.exports = function(iterable, entries, fn, that, ITERATOR){
 };
 exports.BREAK  = BREAK;
 exports.RETURN = RETURN;
-},{"./_an-object":18,"./_ctx":23,"./_is-array-iter":38,"./_iter-call":40,"./_to-length":70,"./core.get-iterator-method":75}],31:[function(_dereq_,module,exports){
+},{"./_an-object":16,"./_ctx":21,"./_is-array-iter":36,"./_iter-call":38,"./_to-length":68,"./core.get-iterator-method":73}],29:[function(_dereq_,module,exports){
 // https://github.com/zloirock/core-js/issues/86#issuecomment-115759028
 var global = module.exports = typeof window != 'undefined' && window.Math == Math
   ? window : typeof self != 'undefined' && self.Math == Math ? self : Function('return this')();
 if(typeof __g == 'number')__g = global; // eslint-disable-line no-undef
-},{}],32:[function(_dereq_,module,exports){
+},{}],30:[function(_dereq_,module,exports){
 var hasOwnProperty = {}.hasOwnProperty;
 module.exports = function(it, key){
   return hasOwnProperty.call(it, key);
 };
-},{}],33:[function(_dereq_,module,exports){
+},{}],31:[function(_dereq_,module,exports){
 var dP         = _dereq_('./_object-dp')
   , createDesc = _dereq_('./_property-desc');
 module.exports = _dereq_('./_descriptors') ? function(object, key, value){
@@ -48349,13 +48336,13 @@ module.exports = _dereq_('./_descriptors') ? function(object, key, value){
   object[key] = value;
   return object;
 };
-},{"./_descriptors":25,"./_object-dp":49,"./_property-desc":56}],34:[function(_dereq_,module,exports){
+},{"./_descriptors":23,"./_object-dp":47,"./_property-desc":54}],32:[function(_dereq_,module,exports){
 module.exports = _dereq_('./_global').document && document.documentElement;
-},{"./_global":31}],35:[function(_dereq_,module,exports){
+},{"./_global":29}],33:[function(_dereq_,module,exports){
 module.exports = !_dereq_('./_descriptors') && !_dereq_('./_fails')(function(){
   return Object.defineProperty(_dereq_('./_dom-create')('div'), 'a', {get: function(){ return 7; }}).a != 7;
 });
-},{"./_descriptors":25,"./_dom-create":26,"./_fails":29}],36:[function(_dereq_,module,exports){
+},{"./_descriptors":23,"./_dom-create":24,"./_fails":27}],34:[function(_dereq_,module,exports){
 // fast apply, http://jsperf.lnkit.com/fast-apply/5
 module.exports = function(fn, args, that){
   var un = that === undefined;
@@ -48372,13 +48359,13 @@ module.exports = function(fn, args, that){
                       : fn.call(that, args[0], args[1], args[2], args[3]);
   } return              fn.apply(that, args);
 };
-},{}],37:[function(_dereq_,module,exports){
+},{}],35:[function(_dereq_,module,exports){
 // fallback for non-array-like ES3 and non-enumerable old V8 strings
 var cof = _dereq_('./_cof');
 module.exports = Object('z').propertyIsEnumerable(0) ? Object : function(it){
   return cof(it) == 'String' ? it.split('') : Object(it);
 };
-},{"./_cof":21}],38:[function(_dereq_,module,exports){
+},{"./_cof":19}],36:[function(_dereq_,module,exports){
 // check on default Array iterator
 var Iterators  = _dereq_('./_iterators')
   , ITERATOR   = _dereq_('./_wks')('iterator')
@@ -48387,11 +48374,11 @@ var Iterators  = _dereq_('./_iterators')
 module.exports = function(it){
   return it !== undefined && (Iterators.Array === it || ArrayProto[ITERATOR] === it);
 };
-},{"./_iterators":45,"./_wks":74}],39:[function(_dereq_,module,exports){
+},{"./_iterators":43,"./_wks":72}],37:[function(_dereq_,module,exports){
 module.exports = function(it){
   return typeof it === 'object' ? it !== null : typeof it === 'function';
 };
-},{}],40:[function(_dereq_,module,exports){
+},{}],38:[function(_dereq_,module,exports){
 // call something on iterator step with safe closing on error
 var anObject = _dereq_('./_an-object');
 module.exports = function(iterator, fn, value, entries){
@@ -48404,7 +48391,7 @@ module.exports = function(iterator, fn, value, entries){
     throw e;
   }
 };
-},{"./_an-object":18}],41:[function(_dereq_,module,exports){
+},{"./_an-object":16}],39:[function(_dereq_,module,exports){
 'use strict';
 var create         = _dereq_('./_object-create')
   , descriptor     = _dereq_('./_property-desc')
@@ -48418,7 +48405,7 @@ module.exports = function(Constructor, NAME, next){
   Constructor.prototype = create(IteratorPrototype, {next: descriptor(1, next)});
   setToStringTag(Constructor, NAME + ' Iterator');
 };
-},{"./_hide":33,"./_object-create":48,"./_property-desc":56,"./_set-to-string-tag":61,"./_wks":74}],42:[function(_dereq_,module,exports){
+},{"./_hide":31,"./_object-create":46,"./_property-desc":54,"./_set-to-string-tag":59,"./_wks":72}],40:[function(_dereq_,module,exports){
 'use strict';
 var LIBRARY        = _dereq_('./_library')
   , $export        = _dereq_('./_export')
@@ -48489,7 +48476,7 @@ module.exports = function(Base, NAME, Constructor, next, DEFAULT, IS_SET, FORCED
   }
   return methods;
 };
-},{"./_export":28,"./_has":32,"./_hide":33,"./_iter-create":41,"./_iterators":45,"./_library":46,"./_object-gpo":52,"./_redefine":58,"./_set-to-string-tag":61,"./_wks":74}],43:[function(_dereq_,module,exports){
+},{"./_export":26,"./_has":30,"./_hide":31,"./_iter-create":39,"./_iterators":43,"./_library":44,"./_object-gpo":50,"./_redefine":56,"./_set-to-string-tag":59,"./_wks":72}],41:[function(_dereq_,module,exports){
 var ITERATOR     = _dereq_('./_wks')('iterator')
   , SAFE_CLOSING = false;
 
@@ -48511,15 +48498,15 @@ module.exports = function(exec, skipClosing){
   } catch(e){ /* empty */ }
   return safe;
 };
-},{"./_wks":74}],44:[function(_dereq_,module,exports){
+},{"./_wks":72}],42:[function(_dereq_,module,exports){
 module.exports = function(done, value){
   return {value: value, done: !!done};
 };
-},{}],45:[function(_dereq_,module,exports){
+},{}],43:[function(_dereq_,module,exports){
 module.exports = {};
-},{}],46:[function(_dereq_,module,exports){
+},{}],44:[function(_dereq_,module,exports){
 module.exports = true;
-},{}],47:[function(_dereq_,module,exports){
+},{}],45:[function(_dereq_,module,exports){
 var global    = _dereq_('./_global')
   , macrotask = _dereq_('./_task').set
   , Observer  = global.MutationObserver || global.WebKitMutationObserver
@@ -48588,7 +48575,7 @@ module.exports = function(){
     } last = task;
   };
 };
-},{"./_cof":21,"./_global":31,"./_task":66}],48:[function(_dereq_,module,exports){
+},{"./_cof":19,"./_global":29,"./_task":64}],46:[function(_dereq_,module,exports){
 // 19.1.2.2 / 15.2.3.5 Object.create(O [, Properties])
 var anObject    = _dereq_('./_an-object')
   , dPs         = _dereq_('./_object-dps')
@@ -48629,7 +48616,7 @@ module.exports = Object.create || function create(O, Properties){
   } else result = createDict();
   return Properties === undefined ? result : dPs(result, Properties);
 };
-},{"./_an-object":18,"./_dom-create":26,"./_enum-bug-keys":27,"./_html":34,"./_object-dps":50,"./_shared-key":62}],49:[function(_dereq_,module,exports){
+},{"./_an-object":16,"./_dom-create":24,"./_enum-bug-keys":25,"./_html":32,"./_object-dps":48,"./_shared-key":60}],47:[function(_dereq_,module,exports){
 var anObject       = _dereq_('./_an-object')
   , IE8_DOM_DEFINE = _dereq_('./_ie8-dom-define')
   , toPrimitive    = _dereq_('./_to-primitive')
@@ -48646,7 +48633,7 @@ exports.f = _dereq_('./_descriptors') ? Object.defineProperty : function defineP
   if('value' in Attributes)O[P] = Attributes.value;
   return O;
 };
-},{"./_an-object":18,"./_descriptors":25,"./_ie8-dom-define":35,"./_to-primitive":72}],50:[function(_dereq_,module,exports){
+},{"./_an-object":16,"./_descriptors":23,"./_ie8-dom-define":33,"./_to-primitive":70}],48:[function(_dereq_,module,exports){
 var dP       = _dereq_('./_object-dp')
   , anObject = _dereq_('./_an-object')
   , getKeys  = _dereq_('./_object-keys');
@@ -48660,7 +48647,7 @@ module.exports = _dereq_('./_descriptors') ? Object.defineProperties : function 
   while(length > i)dP.f(O, P = keys[i++], Properties[P]);
   return O;
 };
-},{"./_an-object":18,"./_descriptors":25,"./_object-dp":49,"./_object-keys":54}],51:[function(_dereq_,module,exports){
+},{"./_an-object":16,"./_descriptors":23,"./_object-dp":47,"./_object-keys":52}],49:[function(_dereq_,module,exports){
 var pIE            = _dereq_('./_object-pie')
   , createDesc     = _dereq_('./_property-desc')
   , toIObject      = _dereq_('./_to-iobject')
@@ -48677,7 +48664,7 @@ exports.f = _dereq_('./_descriptors') ? gOPD : function getOwnPropertyDescriptor
   } catch(e){ /* empty */ }
   if(has(O, P))return createDesc(!pIE.f.call(O, P), O[P]);
 };
-},{"./_descriptors":25,"./_has":32,"./_ie8-dom-define":35,"./_object-pie":55,"./_property-desc":56,"./_to-iobject":69,"./_to-primitive":72}],52:[function(_dereq_,module,exports){
+},{"./_descriptors":23,"./_has":30,"./_ie8-dom-define":33,"./_object-pie":53,"./_property-desc":54,"./_to-iobject":67,"./_to-primitive":70}],50:[function(_dereq_,module,exports){
 // 19.1.2.9 / 15.2.3.2 Object.getPrototypeOf(O)
 var has         = _dereq_('./_has')
   , toObject    = _dereq_('./_to-object')
@@ -48691,7 +48678,7 @@ module.exports = Object.getPrototypeOf || function(O){
     return O.constructor.prototype;
   } return O instanceof Object ? ObjectProto : null;
 };
-},{"./_has":32,"./_shared-key":62,"./_to-object":71}],53:[function(_dereq_,module,exports){
+},{"./_has":30,"./_shared-key":60,"./_to-object":69}],51:[function(_dereq_,module,exports){
 var has          = _dereq_('./_has')
   , toIObject    = _dereq_('./_to-iobject')
   , arrayIndexOf = _dereq_('./_array-includes')(false)
@@ -48709,7 +48696,7 @@ module.exports = function(object, names){
   }
   return result;
 };
-},{"./_array-includes":19,"./_has":32,"./_shared-key":62,"./_to-iobject":69}],54:[function(_dereq_,module,exports){
+},{"./_array-includes":17,"./_has":30,"./_shared-key":60,"./_to-iobject":67}],52:[function(_dereq_,module,exports){
 // 19.1.2.14 / 15.2.3.14 Object.keys(O)
 var $keys       = _dereq_('./_object-keys-internal')
   , enumBugKeys = _dereq_('./_enum-bug-keys');
@@ -48717,9 +48704,9 @@ var $keys       = _dereq_('./_object-keys-internal')
 module.exports = Object.keys || function keys(O){
   return $keys(O, enumBugKeys);
 };
-},{"./_enum-bug-keys":27,"./_object-keys-internal":53}],55:[function(_dereq_,module,exports){
+},{"./_enum-bug-keys":25,"./_object-keys-internal":51}],53:[function(_dereq_,module,exports){
 exports.f = {}.propertyIsEnumerable;
-},{}],56:[function(_dereq_,module,exports){
+},{}],54:[function(_dereq_,module,exports){
 module.exports = function(bitmap, value){
   return {
     enumerable  : !(bitmap & 1),
@@ -48728,7 +48715,7 @@ module.exports = function(bitmap, value){
     value       : value
   };
 };
-},{}],57:[function(_dereq_,module,exports){
+},{}],55:[function(_dereq_,module,exports){
 var hide = _dereq_('./_hide');
 module.exports = function(target, src, safe){
   for(var key in src){
@@ -48736,9 +48723,9 @@ module.exports = function(target, src, safe){
     else hide(target, key, src[key]);
   } return target;
 };
-},{"./_hide":33}],58:[function(_dereq_,module,exports){
+},{"./_hide":31}],56:[function(_dereq_,module,exports){
 module.exports = _dereq_('./_hide');
-},{"./_hide":33}],59:[function(_dereq_,module,exports){
+},{"./_hide":31}],57:[function(_dereq_,module,exports){
 // Works with __proto__ only. Old v8 can't work with null proto objects.
 /* eslint-disable no-proto */
 var isObject = _dereq_('./_is-object')
@@ -48764,7 +48751,7 @@ module.exports = {
     }({}, false) : undefined),
   check: check
 };
-},{"./_an-object":18,"./_ctx":23,"./_is-object":39,"./_object-gopd":51}],60:[function(_dereq_,module,exports){
+},{"./_an-object":16,"./_ctx":21,"./_is-object":37,"./_object-gopd":49}],58:[function(_dereq_,module,exports){
 'use strict';
 var global      = _dereq_('./_global')
   , core        = _dereq_('./_core')
@@ -48779,7 +48766,7 @@ module.exports = function(KEY){
     get: function(){ return this; }
   });
 };
-},{"./_core":22,"./_descriptors":25,"./_global":31,"./_object-dp":49,"./_wks":74}],61:[function(_dereq_,module,exports){
+},{"./_core":20,"./_descriptors":23,"./_global":29,"./_object-dp":47,"./_wks":72}],59:[function(_dereq_,module,exports){
 var def = _dereq_('./_object-dp').f
   , has = _dereq_('./_has')
   , TAG = _dereq_('./_wks')('toStringTag');
@@ -48787,20 +48774,20 @@ var def = _dereq_('./_object-dp').f
 module.exports = function(it, tag, stat){
   if(it && !has(it = stat ? it : it.prototype, TAG))def(it, TAG, {configurable: true, value: tag});
 };
-},{"./_has":32,"./_object-dp":49,"./_wks":74}],62:[function(_dereq_,module,exports){
+},{"./_has":30,"./_object-dp":47,"./_wks":72}],60:[function(_dereq_,module,exports){
 var shared = _dereq_('./_shared')('keys')
   , uid    = _dereq_('./_uid');
 module.exports = function(key){
   return shared[key] || (shared[key] = uid(key));
 };
-},{"./_shared":63,"./_uid":73}],63:[function(_dereq_,module,exports){
+},{"./_shared":61,"./_uid":71}],61:[function(_dereq_,module,exports){
 var global = _dereq_('./_global')
   , SHARED = '__core-js_shared__'
   , store  = global[SHARED] || (global[SHARED] = {});
 module.exports = function(key){
   return store[key] || (store[key] = {});
 };
-},{"./_global":31}],64:[function(_dereq_,module,exports){
+},{"./_global":29}],62:[function(_dereq_,module,exports){
 // 7.3.20 SpeciesConstructor(O, defaultConstructor)
 var anObject  = _dereq_('./_an-object')
   , aFunction = _dereq_('./_a-function')
@@ -48809,7 +48796,7 @@ module.exports = function(O, D){
   var C = anObject(O).constructor, S;
   return C === undefined || (S = anObject(C)[SPECIES]) == undefined ? D : aFunction(S);
 };
-},{"./_a-function":15,"./_an-object":18,"./_wks":74}],65:[function(_dereq_,module,exports){
+},{"./_a-function":13,"./_an-object":16,"./_wks":72}],63:[function(_dereq_,module,exports){
 var toInteger = _dereq_('./_to-integer')
   , defined   = _dereq_('./_defined');
 // true  -> String#at
@@ -48827,7 +48814,7 @@ module.exports = function(TO_STRING){
       : TO_STRING ? s.slice(i, i + 2) : (a - 0xd800 << 10) + (b - 0xdc00) + 0x10000;
   };
 };
-},{"./_defined":24,"./_to-integer":68}],66:[function(_dereq_,module,exports){
+},{"./_defined":22,"./_to-integer":66}],64:[function(_dereq_,module,exports){
 var ctx                = _dereq_('./_ctx')
   , invoke             = _dereq_('./_invoke')
   , html               = _dereq_('./_html')
@@ -48903,7 +48890,7 @@ module.exports = {
   set:   setTask,
   clear: clearTask
 };
-},{"./_cof":21,"./_ctx":23,"./_dom-create":26,"./_global":31,"./_html":34,"./_invoke":36}],67:[function(_dereq_,module,exports){
+},{"./_cof":19,"./_ctx":21,"./_dom-create":24,"./_global":29,"./_html":32,"./_invoke":34}],65:[function(_dereq_,module,exports){
 var toInteger = _dereq_('./_to-integer')
   , max       = Math.max
   , min       = Math.min;
@@ -48911,34 +48898,34 @@ module.exports = function(index, length){
   index = toInteger(index);
   return index < 0 ? max(index + length, 0) : min(index, length);
 };
-},{"./_to-integer":68}],68:[function(_dereq_,module,exports){
+},{"./_to-integer":66}],66:[function(_dereq_,module,exports){
 // 7.1.4 ToInteger
 var ceil  = Math.ceil
   , floor = Math.floor;
 module.exports = function(it){
   return isNaN(it = +it) ? 0 : (it > 0 ? floor : ceil)(it);
 };
-},{}],69:[function(_dereq_,module,exports){
+},{}],67:[function(_dereq_,module,exports){
 // to indexed object, toObject with fallback for non-array-like ES3 strings
 var IObject = _dereq_('./_iobject')
   , defined = _dereq_('./_defined');
 module.exports = function(it){
   return IObject(defined(it));
 };
-},{"./_defined":24,"./_iobject":37}],70:[function(_dereq_,module,exports){
+},{"./_defined":22,"./_iobject":35}],68:[function(_dereq_,module,exports){
 // 7.1.15 ToLength
 var toInteger = _dereq_('./_to-integer')
   , min       = Math.min;
 module.exports = function(it){
   return it > 0 ? min(toInteger(it), 0x1fffffffffffff) : 0; // pow(2, 53) - 1 == 9007199254740991
 };
-},{"./_to-integer":68}],71:[function(_dereq_,module,exports){
+},{"./_to-integer":66}],69:[function(_dereq_,module,exports){
 // 7.1.13 ToObject(argument)
 var defined = _dereq_('./_defined');
 module.exports = function(it){
   return Object(defined(it));
 };
-},{"./_defined":24}],72:[function(_dereq_,module,exports){
+},{"./_defined":22}],70:[function(_dereq_,module,exports){
 // 7.1.1 ToPrimitive(input [, PreferredType])
 var isObject = _dereq_('./_is-object');
 // instead of the ES6 spec version, we didn't implement @@toPrimitive case
@@ -48951,13 +48938,13 @@ module.exports = function(it, S){
   if(!S && typeof (fn = it.toString) == 'function' && !isObject(val = fn.call(it)))return val;
   throw TypeError("Can't convert object to primitive value");
 };
-},{"./_is-object":39}],73:[function(_dereq_,module,exports){
+},{"./_is-object":37}],71:[function(_dereq_,module,exports){
 var id = 0
   , px = Math.random();
 module.exports = function(key){
   return 'Symbol('.concat(key === undefined ? '' : key, ')_', (++id + px).toString(36));
 };
-},{}],74:[function(_dereq_,module,exports){
+},{}],72:[function(_dereq_,module,exports){
 var store      = _dereq_('./_shared')('wks')
   , uid        = _dereq_('./_uid')
   , Symbol     = _dereq_('./_global').Symbol
@@ -48969,7 +48956,7 @@ var $exports = module.exports = function(name){
 };
 
 $exports.store = store;
-},{"./_global":31,"./_shared":63,"./_uid":73}],75:[function(_dereq_,module,exports){
+},{"./_global":29,"./_shared":61,"./_uid":71}],73:[function(_dereq_,module,exports){
 var classof   = _dereq_('./_classof')
   , ITERATOR  = _dereq_('./_wks')('iterator')
   , Iterators = _dereq_('./_iterators');
@@ -48978,7 +48965,7 @@ module.exports = _dereq_('./_core').getIteratorMethod = function(it){
     || it['@@iterator']
     || Iterators[classof(it)];
 };
-},{"./_classof":20,"./_core":22,"./_iterators":45,"./_wks":74}],76:[function(_dereq_,module,exports){
+},{"./_classof":18,"./_core":20,"./_iterators":43,"./_wks":72}],74:[function(_dereq_,module,exports){
 'use strict';
 var addToUnscopables = _dereq_('./_add-to-unscopables')
   , step             = _dereq_('./_iter-step')
@@ -49013,13 +49000,13 @@ Iterators.Arguments = Iterators.Array;
 addToUnscopables('keys');
 addToUnscopables('values');
 addToUnscopables('entries');
-},{"./_add-to-unscopables":16,"./_iter-define":42,"./_iter-step":44,"./_iterators":45,"./_to-iobject":69}],77:[function(_dereq_,module,exports){
+},{"./_add-to-unscopables":14,"./_iter-define":40,"./_iter-step":42,"./_iterators":43,"./_to-iobject":67}],75:[function(_dereq_,module,exports){
 var $export = _dereq_('./_export');
 // 19.1.2.4 / 15.2.3.6 Object.defineProperty(O, P, Attributes)
 $export($export.S + $export.F * !_dereq_('./_descriptors'), 'Object', {defineProperty: _dereq_('./_object-dp').f});
-},{"./_descriptors":25,"./_export":28,"./_object-dp":49}],78:[function(_dereq_,module,exports){
+},{"./_descriptors":23,"./_export":26,"./_object-dp":47}],76:[function(_dereq_,module,exports){
 
-},{}],79:[function(_dereq_,module,exports){
+},{}],77:[function(_dereq_,module,exports){
 'use strict';
 var LIBRARY            = _dereq_('./_library')
   , global             = _dereq_('./_global')
@@ -49321,7 +49308,7 @@ $export($export.S + $export.F * !(USE_NATIVE && _dereq_('./_iter-detect')(functi
     return capability.promise;
   }
 });
-},{"./_a-function":15,"./_an-instance":17,"./_an-object":18,"./_classof":20,"./_core":22,"./_ctx":23,"./_export":28,"./_for-of":30,"./_global":31,"./_is-object":39,"./_iter-detect":43,"./_library":46,"./_microtask":47,"./_redefine-all":57,"./_set-proto":59,"./_set-species":60,"./_set-to-string-tag":61,"./_species-constructor":64,"./_task":66,"./_wks":74}],80:[function(_dereq_,module,exports){
+},{"./_a-function":13,"./_an-instance":15,"./_an-object":16,"./_classof":18,"./_core":20,"./_ctx":21,"./_export":26,"./_for-of":28,"./_global":29,"./_is-object":37,"./_iter-detect":41,"./_library":44,"./_microtask":45,"./_redefine-all":55,"./_set-proto":57,"./_set-species":58,"./_set-to-string-tag":59,"./_species-constructor":62,"./_task":64,"./_wks":72}],78:[function(_dereq_,module,exports){
 'use strict';
 var $at  = _dereq_('./_string-at')(true);
 
@@ -49339,7 +49326,7 @@ _dereq_('./_iter-define')(String, 'String', function(iterated){
   this._i += point.length;
   return {value: point, done: false};
 });
-},{"./_iter-define":42,"./_string-at":65}],81:[function(_dereq_,module,exports){
+},{"./_iter-define":40,"./_string-at":63}],79:[function(_dereq_,module,exports){
 _dereq_('./es6.array.iterator');
 var global        = _dereq_('./_global')
   , hide          = _dereq_('./_hide')
@@ -49353,14 +49340,7 @@ for(var collections = ['NodeList', 'DOMTokenList', 'MediaList', 'StyleSheetList'
   if(proto && !proto[TO_STRING_TAG])hide(proto, TO_STRING_TAG, NAME);
   Iterators[NAME] = Iterators.Array;
 }
-},{"./_global":31,"./_hide":33,"./_iterators":45,"./_wks":74,"./es6.array.iterator":76}],82:[function(_dereq_,module,exports){
-var $export = _dereq_('./_export')
-  , $task   = _dereq_('./_task');
-$export($export.G + $export.B, {
-  setImmediate:   $task.set,
-  clearImmediate: $task.clear
-});
-},{"./_export":28,"./_task":66}],83:[function(_dereq_,module,exports){
+},{"./_global":29,"./_hide":31,"./_iterators":43,"./_wks":72,"./es6.array.iterator":74}],80:[function(_dereq_,module,exports){
 (function (global){
 /**
  * @license
@@ -65768,7 +65748,7 @@ $export($export.G + $export.B, {
 }.call(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],84:[function(_dereq_,module,exports){
+},{}],81:[function(_dereq_,module,exports){
 module.exports={
 	"version": "2016d",
 	"zones": [
@@ -66364,11 +66344,11 @@ module.exports={
 		"Pacific/Pohnpei|Pacific/Ponape"
 	]
 }
-},{}],85:[function(_dereq_,module,exports){
+},{}],82:[function(_dereq_,module,exports){
 var moment = module.exports = _dereq_("./moment-timezone");
 moment.tz.load(_dereq_('./data/packed/latest.json'));
 
-},{"./data/packed/latest.json":84,"./moment-timezone":86}],86:[function(_dereq_,module,exports){
+},{"./data/packed/latest.json":81,"./moment-timezone":83}],83:[function(_dereq_,module,exports){
 //! moment-timezone.js
 //! version : 0.5.4
 //! author : Tim Wood
@@ -66971,7 +66951,7 @@ moment.tz.load(_dereq_('./data/packed/latest.json'));
 	return moment;
 }));
 
-},{"moment":87}],87:[function(_dereq_,module,exports){
+},{"moment":84}],84:[function(_dereq_,module,exports){
 //! moment.js
 //! version : 2.13.0
 //! authors : Tim Wood, Iskren Chernev, Moment.js contributors
