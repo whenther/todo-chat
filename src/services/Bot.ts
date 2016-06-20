@@ -126,6 +126,21 @@ class Bot {
         }
       }
     });
+
+    this.nlc.registerIntent({
+      intent: 'HELP',
+      utterances: [
+        'help',
+        'what',
+        'how'
+      ],
+      callback: () => {
+        this.send(`You can ask things like:`);
+        this.send(`"add {Item} to my list" or "remind me to {Item}"`);
+        this.send(`"what's on my todo list" or "do I have anything to do"`);
+        this.send(`"mark {Number} as done" or "I finished {Number}"`);
+      } 
+    });
   }
 
   public handleCommand = (command) => {
