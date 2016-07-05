@@ -47439,14 +47439,6 @@ module.exports = angular;
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.NLC = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 "use strict";
 
-var _stringify = _dereq_('babel-runtime/core-js/json/stringify');
-
-var _stringify2 = _interopRequireDefault(_stringify);
-
-var _setImmediate2 = _dereq_('babel-runtime/core-js/set-immediate');
-
-var _setImmediate3 = _interopRequireDefault(_setImmediate2);
-
 var _classCallCheck2 = _dereq_('babel-runtime/helpers/classCallCheck');
 
 var _classCallCheck3 = _interopRequireDefault(_classCallCheck2);
@@ -47455,17 +47447,25 @@ var _createClass2 = _dereq_('babel-runtime/helpers/createClass');
 
 var _createClass3 = _interopRequireDefault(_createClass2);
 
+var _setImmediate2 = _dereq_('babel-runtime/core-js/set-immediate');
+
+var _setImmediate3 = _interopRequireDefault(_setImmediate2);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var _ = _dereq_('lodash');
 var Deferred_1 = _dereq_('./lib/Deferred');
-var commonMistakes_1 = _dereq_('./lib/commonMistakes');
 var standardSlots = _dereq_('./lib/standardSlots');
+var Matcher_1 = _dereq_('./lib/Matcher');
+var Question_1 = _dereq_('./lib/Question');
+// Use setImmediate in node and FF, or the slower setTimeout otherwise,
+// to delay a resolve so it is always async.
+var delay = typeof _setImmediate3.default === 'function' ? _setImmediate3.default : setTimeout;
 /** Holds registered natural language commands. */
 
 var NaturalLanguageCommander = function () {
     /**
-     * @param spellcheckCorpus - An array of words to use as the corpus for the spellchecker.
+     * Sets up the nlc instance with the default stop types.
      */
 
     function NaturalLanguageCommander() {
@@ -47473,9 +47473,6 @@ var NaturalLanguageCommander = function () {
 
         (0, _classCallCheck3.default)(this, NaturalLanguageCommander);
 
-        this.slotTypes = {};
-        this.intents = [];
-        this.matchers = [];
         /**
          * Add a custom slot type. Bound to this.
          * @param slotType
@@ -47501,119 +47498,383 @@ var NaturalLanguageCommander = function () {
         /**
          * Register an intent. Bound to this.
          * @param intent
+         * @returns true if added, false if the intent name already exists.
          */
         this.registerIntent = function (intent) {
-            if (_.includes(_.map(_this.intents, 'name'), intent.intent)) {
+            // Don't allow duplicate intents.
+            if (_this.doesIntentExist(intent.intent)) {
                 return false;
             }
             // Push in the intent.
             _this.intents.push(intent);
+            // Record the intent name for checking for duplicates.
+            _this.intentNames.push(intent.intent);
             // Push in the utterance matchers.
             _.forEach(intent.utterances, function (utterance) {
-                _this.matchers.push(_this.getUtteranceMatcher(utterance, intent));
+                _this.matchers.push(new Matcher_1.default(_this.slotTypes, intent, utterance));
             });
         };
+        /**
+         * Register a question intent. Bound to this.
+         * @param intent
+         * @returns true if added, false if the intent name already exists.
+         */
+        this.registerQuestionIntent = function (intent) {
+            // Don't allow duplicate intents.
+            if (_this.doesIntentExist(intent.intent)) {
+                return false;
+            }
+            // Record the intent name for checking for duplicates.
+            _this.intentNames.push(intent.intent);
+            // Set up the question.
+            _this.questions[intent.intent] = new Question_1.default(_this, intent);
+        };
+        this.slotTypes = {};
+        this.intentNames = [];
+        this.intents = [];
+        this.questions = {};
+        this.activeQuestions = {};
+        this.matchers = [];
         // Add the standard slot types.
         _.forOwn(standardSlots, this.addSlotType);
     }
+    /**
+     * Get a fresh copy of this instance of NLC, but with the same slotTypes
+     * already registered.
+     * @returns the fresh instance.
+     */
+
 
     (0, _createClass3.default)(NaturalLanguageCommander, [{
+        key: 'clone',
+        value: function clone() {
+            var nlc = new NaturalLanguageCommander();
+            nlc.slotTypes = this.slotTypes;
+            return nlc;
+        }
+        /**
+         * Add an utterance to an existing intent.
+         * @param intentName - The name of the intent to add to.
+         * @param utterance - The utterance string to add.
+         * @returns False if the intent was not found or the utterance already exists. Otherwise true.
+         */
+
+    }, {
+        key: 'addUtterance',
+        value: function addUtterance(intentName, utterance) {
+            // Get the intent by name.
+            var intent = _.find(this.intents, function (intent) {
+                return intent.intent === intentName;
+            });
+            // If not found, return.
+            if (!intent) {
+                return false;
+            }
+            // If the utterance already exists, return false.
+            if (_.includes(intent.utterances, utterance)) {
+                return false;
+            }
+            // Add the utterance to the intent.
+            intent.utterances.push(utterance);
+            // Add the utterance to the matchers list.
+            this.matchers.push(new Matcher_1.default(this.slotTypes, intent, utterance));
+            return true;
+        }
+    }, {
         key: 'handleCommand',
-        value: function handleCommand(dataOrCommand, command) {
+        value: function handleCommand(dataOrCommandOrOptions, command) {
             var _this2 = this;
 
             var deferred = new Deferred_1.default();
             // Handle overload.
             var data = void 0;
-            if (command) {
-                data = dataOrCommand;
+            var userId = void 0;
+            if (_.isString(dataOrCommandOrOptions)) {
+                // 2nd signature.
+                command = dataOrCommandOrOptions;
+            } else if (command) {
+                // 1st signature.
+                data = dataOrCommandOrOptions;
             } else {
-                command = dataOrCommand;
+                // 3rd signature.
+                command = dataOrCommandOrOptions.command;
+                data = dataOrCommandOrOptions.data;
+                userId = dataOrCommandOrOptions.userId;
             }
             if (!_.isString(command)) {
                 throw new Error('NLC: ' + command + ' must be a string!');
             }
             // Clean up the input.
             command = this.cleanCommand(command);
-            /** Flag if there was a match */
-            var foundMatch = false;
-            // Use setImmediate in node and FF, the slower setTimeout otherwise,
-            // to delay the resolve so this is always async.
-            var delay = typeof _setImmediate3.default === 'function' ? _setImmediate3.default : setTimeout;
+            // Delay to ensure this is async.
             delay(function () {
-                _.forEach(_this2.matchers, function (matcher) {
-                    var slotValues = _this2.checkCommandForMatch(command, matcher);
-                    if (slotValues) {
-                        var orderedSlots = _this2.getOrderedSlots(matcher.intent, slotValues);
-                        if (data) {
-                            // Add the data as the first arg, if specified.
-                            orderedSlots.unshift(data);
-                        }
-                        // Call the callback with the slot values in order.
-                        matcher.intent.callback.apply(null, orderedSlots);
-                        // Resolve with the intent name, for reference.
-                        deferred.resolve(matcher.intent.intent);
-                        // Flag that a match was found.
-                        foundMatch = true;
-                        // Exit early.
-                        return false;
-                    }
-                });
-                // Reject if no matches.
-                if (!foundMatch) {
-                    deferred.reject();
+                if (userId && _this2.activeQuestions[userId]) {
+                    _this2.handleQuestionAnswer(deferred, data, command, userId);
+                } else {
+                    _this2.handleNormalCommand(deferred, data, command);
                 }
             });
             return deferred.promise;
         }
+    }, {
+        key: 'ask',
+        value: function ask(dataOrUserId, userIdOrQuestionName, questionName) {
+            // Handle overload.
+            var data = void 0;
+            var userId = void 0;
+            if (questionName) {
+                data = dataOrUserId;
+                userId = userIdOrQuestionName;
+            } else {
+                userId = dataOrUserId;
+                questionName = userIdOrQuestionName;
+            }
+            // Pull the question from the list of registered questions.
+            var question = this.questions[questionName];
+            // Fail is the question wasn't set up.
+            if (!question) {
+                return false;
+            }
+            // Make the question active.
+            this.activeQuestions[userId] = question;
+            // Ask the question after a delay.
+            delay(function () {
+                question.ask(userId, data);
+            });
+            return true;
+        }
         /**
-         * Get the slot values in the order specified by an intent.
-         * @param intent - The user's intent.
-         * @param slotMapping - The slot values mapped to their names.
-         * @returns The ordered array of slot values.
+         * Cleans up a command for processing.
+         * @param command - the user's command.
          */
 
     }, {
-        key: 'getOrderedSlots',
-        value: function getOrderedSlots(intent, slotMapping) {
-            // Loop through the intent's slot ordering.
-            return _.map(intent.slots, function (slot) {
-                // Add the slot values in order.
-                return slotMapping[slot.name];
+        key: 'cleanCommand',
+        value: function cleanCommand(command) {
+            return command.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
+        }
+    }, {
+        key: 'doesIntentExist',
+        value: function doesIntentExist(intentName) {
+            return _.includes(this.intentNames, intentName);
+        }
+        /** Handle a command for an active question. */
+
+    }, {
+        key: 'handleQuestionAnswer',
+        value: function handleQuestionAnswer(deferred, data, command, userId) {
+            var _this3 = this;
+
+            // If this user has an active question, grab it.
+            var question = this.activeQuestions[userId];
+            var questionName = question.intent.intent;
+            // Try to answer the question with the command.
+            question.answer(command, userId, data).then(function () {
+                _this3.finishQuestion(userId);
+                // If the answer matched, resolve with the question name.
+                deferred.resolve(questionName);
+            }).catch(function () {
+                _this3.finishQuestion(userId);
+                // If the answer failed, reject with the question name, so any
+                // logger knows what question failed.
+                deferred.reject(questionName);
             });
         }
         /**
-         * Check a command against an utterance matcher.
-         * @param command - The command text.
-         * @param matcher - An utternace matcher
-         * @returns undefined if no match, an object of slotNames to the matched data otherwise.
+         * Deactive a question once the user has answered it.
          */
 
     }, {
-        key: 'checkCommandForMatch',
-        value: function checkCommandForMatch(command, matcher) {
-            var _this3 = this;
+        key: 'finishQuestion',
+        value: function finishQuestion(userId) {
+            this.activeQuestions[userId] = undefined;
+        }
+        /** Handle a command normally. */
 
-            var matches = command.match(matcher.matcher);
+    }, {
+        key: 'handleNormalCommand',
+        value: function handleNormalCommand(deferred, data, command) {
+            /** Flag if there was a match */
+            var foundMatch = false;
+            // Handle a normal command.
+            _.forEach(this.matchers, function (matcher) {
+                /** The slots from the match or [], if the match was found. */
+                var orderedSlots = matcher.check(command);
+                // If orderedSlots is undefined, the match failed.
+                if (orderedSlots) {
+                    if (data) {
+                        // Add the data as the first arg, if specified.
+                        orderedSlots.unshift(data);
+                    }
+                    // Call the callback with the slot values in order.
+                    matcher.intent.callback.apply(null, orderedSlots);
+                    // Resolve with the intent name, for reference.
+                    deferred.resolve(matcher.intent.intent);
+                    // Flag that a match was found.
+                    foundMatch = true;
+                    // Exit early.
+                    return false;
+                }
+            });
+            // Reject if no matches.
+            if (!foundMatch) {
+                deferred.reject();
+            }
+        }
+    }]);
+    return NaturalLanguageCommander;
+}();
+
+module.exports = NaturalLanguageCommander;
+
+
+},{"./lib/Deferred":2,"./lib/Matcher":3,"./lib/Question":4,"./lib/standardSlots":6,"babel-runtime/core-js/set-immediate":10,"babel-runtime/helpers/classCallCheck":11,"babel-runtime/helpers/createClass":12,"lodash":85}],2:[function(_dereq_,module,exports){
+"use strict";
+
+var _promise = _dereq_("babel-runtime/core-js/promise");
+
+var _promise2 = _interopRequireDefault(_promise);
+
+var _classCallCheck2 = _dereq_("babel-runtime/helpers/classCallCheck");
+
+var _classCallCheck3 = _interopRequireDefault(_classCallCheck2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var Deferred = function Deferred() {
+    var _this = this;
+
+    (0, _classCallCheck3.default)(this, Deferred);
+
+    this.promise = new _promise2.default(function (resolve, reject) {
+        _this.resolve = resolve;
+        _this.reject = reject;
+    });
+};
+
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = Deferred;
+
+
+},{"babel-runtime/core-js/promise":9,"babel-runtime/helpers/classCallCheck":11}],3:[function(_dereq_,module,exports){
+"use strict";
+
+var _stringify = _dereq_('babel-runtime/core-js/json/stringify');
+
+var _stringify2 = _interopRequireDefault(_stringify);
+
+var _classCallCheck2 = _dereq_('babel-runtime/helpers/classCallCheck');
+
+var _classCallCheck3 = _interopRequireDefault(_classCallCheck2);
+
+var _createClass2 = _dereq_('babel-runtime/helpers/createClass');
+
+var _createClass3 = _interopRequireDefault(_createClass2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var _ = _dereq_('lodash');
+var commonMistakes_1 = _dereq_('./commonMistakes');
+/**
+ * Matches a utterance and slots against a command.
+ */
+
+var Matcher = function () {
+    /**
+     * Set up a new matcher for an intent's utterance.
+     * @param slotTypes - a reference to the set up slotTypes for the NLC instance.
+     * @param intent - The intent this matcher is for.
+     * @param utterance - The utterance this matcher is for.
+     */
+
+    function Matcher(slotTypes, intent, utterance) {
+        (0, _classCallCheck3.default)(this, Matcher);
+
+        this.slotTypes = slotTypes;
+        this.intent = intent;
+        var slots = this.intent.slots;
+        var slotMapping = [];
+        // Handle slot replacement.
+        if (slots && slots.length) {
+            // A lazy regexp that looks for words in curly braces.
+            // Don't use global, so it checks the new utterance fresh every time.
+            var slotRegexp = /{(\w+?)}/;
+            var names = _.map(slots, 'name');
+            var matchIndex = void 0;
+            // Loop while there are still slots left.
+            while ((matchIndex = utterance.search(slotRegexp)) !== -1) {
+                /** The name of the slot, not including the braces. */
+                var slotName = utterance.match(slotRegexp)[1];
+                /** The length of the whole slot match. */
+                var matchLength = utterance.match(slotRegexp)[0].length;
+                // Check if the slot name matches the intent's slot names.
+                if (_.includes(names, slotName)) {
+                    // Find where in the slot names array this slot is.
+                    var slotIndex = names.indexOf(slotName);
+                    // Find the matching intent slot.
+                    var slot = slots[slotIndex];
+                    // Find the matching slot type.
+                    var slotType = this.slotTypes[slot.type];
+                    // Handle bad slot type.
+                    if (!slotType) {
+                        throw new Error('NLC: slot type ' + slot.type + ' does not exist!');
+                    }
+                    // Update the utterance.
+                    utterance = this.repaceSlotWithCaptureGroup(utterance, slotType, matchIndex, matchLength);
+                    // Record the match ordering for this slot in the utterance.
+                    slotMapping.push(slot);
+                } else {
+                    // Throw an error so the user knows they used a bad slot.
+                    // TODO: Handle intentional slot-looking charater runs with escaping or something?
+                    throw new Error('NLC: slot "' + slotName + '" not included in slots ' + (0, _stringify2.default)(names) + ' for ' + intent.intent + '!');
+                }
+            }
+        }
+        // Do some regex-readying on the utterance.
+        utterance = this.replaceCommonMispellings(utterance);
+        utterance = this.replaceSpacesForRegexp(utterance);
+        utterance = this.replaceBracesForRegexp(utterance);
+        // Add the start carat, so this only matches the start of commands,
+        // which helps with collisions.
+        utterance = '^\\s*' + utterance;
+        // Compile the regular expression, ignore case.
+        this.regExp = new RegExp(utterance, 'i');
+        // Store the mapping for later retrieval.
+        this.slotMapping = slotMapping;
+    }
+    /**
+     * Check if the matcher matches a command.
+     * @param command - the command to match against.
+     * @returns An ordered array of slot matches. Undefined if no match.
+     */
+
+
+    (0, _createClass3.default)(Matcher, [{
+        key: 'check',
+        value: function check(command) {
+            var _this = this;
+
+            /** The matches for the slots. */
+            var matches = command.match(this.regExp);
             // If the command didn't match, failure.
             if (!matches) {
                 return;
             }
             // If it matched, and there are no slots, success!
             // Return an empty slotMapping, so the function returns truthy.
-            if (matcher.mapping.length === 0) {
-                return {};
+            if (this.slotMapping.length === 0) {
+                return [];
             }
-            // Remove the global match, we don't need it.
+            // Remove the first, global match, we don't need it.
             matches.shift();
             // Flag if there was a bad match.
             var badMatch = false;
             /** Map the slotNames to the matched data. */
             var matchedSlots = {};
             // Check each slot to see if it matches.
-            _.forEach(matcher.mapping, function (slot, i) {
+            _.forEach(this.slotMapping, function (slot, i) {
                 var slotText = matches[i];
-                var slotData = _this3.checkSlotMatch(slotText, slot.type);
+                var slotData = _this.checkSlotMatch(slotText, slot.type);
                 // If the slot didn't match, note the bad match, and exit early.
                 // Allow the value 0 to match.
                 if (slotData === undefined || slotData === '') {
@@ -47625,14 +47886,70 @@ var NaturalLanguageCommander = function () {
             });
             // If there were no bad maches, return the slots. Otherwise return nothing.
             if (!badMatch) {
-                return matchedSlots;
+                return this.getOrderedSlots(matchedSlots);
             }
         }
+        // ==============================
+        // Constructor methods
+        // ==============================
+        /**
+         * For any word in the utterance that has common misspellings, replace it with
+         * a group that catches them.
+         * @param utterance - The utterance.
+         * @returns the utterance with replacements.
+         */
+
+    }, {
+        key: 'replaceCommonMispellings',
+        value: function replaceCommonMispellings(utterance) {
+            // Split utterance into words, removing duplicates.
+            var words = _.chain(utterance).words().uniq().value();
+            _.forEach(words, function (word) {
+                // Get the mistake checker, if there is one.
+                var mistakeReplacement = commonMistakes_1.default(word);
+                if (mistakeReplacement) {
+                    // Replace all instances of the word with the replacement, if there is one.
+                    utterance = utterance.replace(new RegExp(word, 'ig'), mistakeReplacement);
+                }
+            });
+            return utterance;
+        }
+        /** Replace runs of spaces with the space character, for better matching. */
+
+    }, {
+        key: 'replaceSpacesForRegexp',
+        value: function replaceSpacesForRegexp(utterance) {
+            return _.replace(utterance, /\s+/g, '\\s+');
+        }
+        /** Escape braces that would cause a problem with regular expressions. */
+
+    }, {
+        key: 'replaceBracesForRegexp',
+        value: function replaceBracesForRegexp(utterance) {
+            utterance.replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)');
+            return utterance;
+        }
+        /**
+         * Replace a solt with a regex capture group.
+         */
+
+    }, {
+        key: 'repaceSlotWithCaptureGroup',
+        value: function repaceSlotWithCaptureGroup(utterance, slotType, matchIndex, matchLength) {
+            // Find the end of the slot name (accounting for braces).
+            var lastIndex = matchIndex + matchLength;
+            var matcher = slotType.baseMatcher || '.+';
+            // Replace the slot with a generic capture group.
+            return utterance.slice(0, matchIndex) + '(' + matcher + ')' + utterance.slice(lastIndex);
+        }
+        // ==============================
+        // Check methods
+        // ==============================
         /**
          * Check text for a slotType match.
+         * @param slotText - The text to match against.
          * @param slotType - The slotType name
-         * @param text - The text to match against.
-         * @returns undefined if no match, otherwise the return value of the slot type.
+         * @returns undefined if no match, otherwise the return value of the slot type transform.
          */
 
     }, {
@@ -47697,158 +48014,124 @@ var NaturalLanguageCommander = function () {
                 return slotText;
             }
         }
-    }, {
-        key: 'getUtteranceMatcher',
-        value: function getUtteranceMatcher(utterance, intent) {
-            var slots = intent.slots;
-            var slotMapping = [];
-            // Handle slot replacement.
-            if (slots && slots.length) {
-                // A lazy regexp that looks for words in curly braces.
-                // Don't use global, so it checks the new utterance fresh every time.
-                var slotRegexp = /{(\w+?)}/;
-                var names = _.map(slots, 'name');
-                var matchIndex = void 0;
-                // Loop while there are still slots left.
-                while ((matchIndex = utterance.search(slotRegexp)) !== -1) {
-                    /** The name of the slot, not including the braces. */
-                    var slotName = utterance.match(slotRegexp)[1];
-                    /** The length of the whole slot match. */
-                    var matchLength = utterance.match(slotRegexp)[0].length;
-                    // Check if the slot name matches the intent's slot names.
-                    if (_.includes(names, slotName)) {
-                        // Find where in the slot names array this slot is.
-                        var slotIndex = names.indexOf(slotName);
-                        // Find the matching intent slot.
-                        var slot = slots[slotIndex];
-                        // Find the matching slot type.
-                        var slotType = this.slotTypes[slot.type];
-                        // Handle bad slot type.
-                        if (!slotType) {
-                            throw new Error('NLC: slot type ' + slot.type + ' does not exist!');
-                        }
-                        // Update the utterance.
-                        utterance = this.repaceSlotWithCaptureGroup(utterance, slotType, matchIndex, matchLength);
-                        // Record the match ordering for this slot in the utterance.
-                        slotMapping.push(slot);
-                    } else {
-                        // Throw an error so the user knows they used a bad slot.
-                        // TODO: Handle intentional slot-looking charater runs with escaping or something?
-                        throw new Error('NLC: slot "' + slotName + '" not included in slots ' + (0, _stringify2.default)(names) + ' for ' + intent.intent + '!');
-                    }
-                }
-            }
-            // Do some regex-readying on the utterance.
-            utterance = this.replaceCommonMispellings(utterance);
-            utterance = this.replaceSpacesForRegexp(utterance);
-            utterance = this.replaceBracesForRegexp(utterance);
-            // Add the start carat, so this only matches the start of commands,
-            // which helps with collisions.
-            utterance = '^\\s*' + utterance;
-            return {
-                intent: intent,
-                // Compile the regular expression, ignore case.
-                matcher: new RegExp(utterance, 'i'),
-                // Store the mapping for later retrieval.
-                mapping: slotMapping
-            };
-        }
         /**
-         * For any word in the utterance that has common misspellings, replace it with
-         * a group that catches them.
-         * @param utterance - The utterance.
-         * @returns the utterance with replacements.
+         * Get the slot values in the order specified by an intent.
+         * @param slotMapping - The slot values mapped to their names.
+         * @returns The ordered array of slot values.
          */
 
     }, {
-        key: 'replaceCommonMispellings',
-        value: function replaceCommonMispellings(utterance) {
-            // Split utterance into words, removing duplicates.
-            var words = _.chain(utterance).words().uniq().value();
-            _.forEach(words, function (word) {
-                // Get the mistake checker, if there is one.
-                var mistakeReplacement = commonMistakes_1.default(word);
-                if (mistakeReplacement) {
-                    // Replace all instances of the word with the replacement, if there is one.
-                    utterance = utterance.replace(new RegExp(word, 'ig'), mistakeReplacement);
-                }
+        key: 'getOrderedSlots',
+        value: function getOrderedSlots(slotMapping) {
+            // Loop through the intent's slot ordering.
+            return _.map(this.intent.slots, function (slot) {
+                // Add the slot values in order.
+                return slotMapping[slot.name];
             });
-            return utterance;
-        }
-        /** Replace runs of spaces with the space character, for better matching. */
-
-    }, {
-        key: 'replaceSpacesForRegexp',
-        value: function replaceSpacesForRegexp(utterance) {
-            return _.replace(utterance, /\s+/g, '\\s+');
-        }
-        /** Escape braces that would cause a problem with regular expressions. */
-
-    }, {
-        key: 'replaceBracesForRegexp',
-        value: function replaceBracesForRegexp(utterance) {
-            utterance.replace('[', '\\[').replace(']', '\\]').replace('(', '\\(').replace(')', '\\)');
-            return utterance;
-        }
-        /**
-         * Replace a solt with a regex capture group.
-         */
-
-    }, {
-        key: 'repaceSlotWithCaptureGroup',
-        value: function repaceSlotWithCaptureGroup(utterance, slotType, matchIndex, matchLength) {
-            // Find the end of the slot name (accounting for braces).
-            var lastIndex = matchIndex + matchLength;
-            var matcher = slotType.baseMatcher || '.+';
-            // Replace the slot with a generic capture group.
-            return utterance.slice(0, matchIndex) + '(' + matcher + ')' + utterance.slice(lastIndex);
-        }
-        /**
-         * Cleans up a command for processing.
-         * @param command - the user's command.
-         */
-
-    }, {
-        key: 'cleanCommand',
-        value: function cleanCommand(command) {
-            return command.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
         }
     }]);
-    return NaturalLanguageCommander;
+    return Matcher;
 }();
 
-module.exports = NaturalLanguageCommander;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = Matcher;
 
 
-},{"./lib/Deferred":2,"./lib/commonMistakes":3,"./lib/standardSlots":4,"babel-runtime/core-js/json/stringify":5,"babel-runtime/core-js/set-immediate":8,"babel-runtime/helpers/classCallCheck":9,"babel-runtime/helpers/createClass":10,"lodash":83}],2:[function(_dereq_,module,exports){
+},{"./commonMistakes":5,"babel-runtime/core-js/json/stringify":7,"babel-runtime/helpers/classCallCheck":11,"babel-runtime/helpers/createClass":12,"lodash":85}],4:[function(_dereq_,module,exports){
 "use strict";
+/** Represents a registered question. */
 
-var _promise = _dereq_("babel-runtime/core-js/promise");
-
-var _promise2 = _interopRequireDefault(_promise);
-
-var _classCallCheck2 = _dereq_("babel-runtime/helpers/classCallCheck");
+var _classCallCheck2 = _dereq_('babel-runtime/helpers/classCallCheck');
 
 var _classCallCheck3 = _interopRequireDefault(_classCallCheck2);
 
+var _createClass2 = _dereq_('babel-runtime/helpers/createClass');
+
+var _createClass3 = _interopRequireDefault(_createClass2);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var Deferred = function Deferred() {
-    var _this = this;
+var Question = function () {
+    function Question(parentNlc, intent) {
+        (0, _classCallCheck3.default)(this, Question);
 
-    (0, _classCallCheck3.default)(this, Deferred);
+        this.intent = intent;
+        this.JUST_THE_SLOT_UTTERANCE = ['{Slot}'];
+        // Set up a new NLC instance, with access to the parent slot types.
+        this.nlc = parentNlc.clone();
+        // Register the cancel intent first, so it matches first.
+        if (this.intent.cancelCallback) {
+            this.nlc.registerIntent(this.cancelIntent);
+        }
+        // Register an intent for the question.
+        this.nlc.registerIntent(this.questionIntent);
+    }
 
-    this.promise = new _promise2.default(function (resolve, reject) {
-        _this.resolve = resolve;
-        _this.reject = reject;
-    });
-};
+    (0, _createClass3.default)(Question, [{
+        key: 'ask',
+        value: function ask(userId, data) {
+            this.intent.questionCallback(data || userId);
+        }
+        /**
+         * Check an answer against the question matcher.
+         */
+
+    }, {
+        key: 'answer',
+        value: function answer(_answer, userId, data) {
+            var _this = this;
+
+            return this.nlc.handleCommand({
+                data: data || userId,
+                command: _answer
+            }).catch(function () {
+                // Handle the failure.
+                _this.intent.failCallback(data);
+                // Rethrow to pass the error along.
+                throw new Error();
+            });
+        }
+        /** A standard intent pulled from the question intent. */
+
+    }, {
+        key: 'questionIntent',
+        get: function get() {
+            var utterances = this.intent.utterances || this.JUST_THE_SLOT_UTTERANCE;
+            return {
+                intent: this.intent.intent,
+                slots: [{
+                    name: 'Slot',
+                    type: this.intent.slotType
+                }],
+                utterances: utterances,
+                callback: this.intent.successCallback
+            };
+        }
+        /** An intent for cancelling the question. */
+
+    }, {
+        key: 'cancelIntent',
+        get: function get() {
+            var utterances = this.intent.utterances || this.JUST_THE_SLOT_UTTERANCE;
+            return {
+                intent: 'CANCEL',
+                slots: [{
+                    name: 'Slot',
+                    type: 'NEVERMIND'
+                }],
+                utterances: this.JUST_THE_SLOT_UTTERANCE,
+                callback: this.intent.cancelCallback
+            };
+        }
+    }]);
+    return Question;
+}();
 
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.default = Deferred;
+exports.default = Question;
 
 
-},{"babel-runtime/core-js/promise":7,"babel-runtime/helpers/classCallCheck":9}],3:[function(_dereq_,module,exports){
+},{"babel-runtime/helpers/classCallCheck":11,"babel-runtime/helpers/createClass":12}],5:[function(_dereq_,module,exports){
 "use strict";
 
 var MISTAKES = {
@@ -47972,7 +48255,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = default_1;
 
 
-},{}],4:[function(_dereq_,module,exports){
+},{}],6:[function(_dereq_,module,exports){
 /**
  * Standard slot types for the NaturalLanguageCommander
  * @module standardSlots
@@ -47985,6 +48268,11 @@ var moment = _dereq_('moment-timezone');
 /** The timezone to use for relative dates. */
 var TIMEZONE = 'America/Los_Angeles';
 var DATE_FORMATS = ['M/D/YYYY', 'M-D-YYYY', 'MMM D YYYY', 'MMM D, YYYY', 'MMMM D YYYY', 'MMMM D, YYYY', 'YYYY-M-D'];
+/** Commands to cancel a question. */
+exports.NEVERMIND = {
+    type: 'NEVERMIND',
+    matcher: ['nevermind', 'never mind', 'cancel', 'exit', 'back', 'quit']
+};
 /** A string of any length. */
 exports.STRING = {
     type: 'STRING',
@@ -48049,15 +48337,15 @@ exports.SLACK_ROOM = {
 };
 
 
-},{"lodash":83,"moment-timezone":85}],5:[function(_dereq_,module,exports){
+},{"lodash":85,"moment-timezone":87}],7:[function(_dereq_,module,exports){
 module.exports = { "default": _dereq_("core-js/library/fn/json/stringify"), __esModule: true };
-},{"core-js/library/fn/json/stringify":11}],6:[function(_dereq_,module,exports){
+},{"core-js/library/fn/json/stringify":13}],8:[function(_dereq_,module,exports){
 module.exports = { "default": _dereq_("core-js/library/fn/object/define-property"), __esModule: true };
-},{"core-js/library/fn/object/define-property":12}],7:[function(_dereq_,module,exports){
+},{"core-js/library/fn/object/define-property":14}],9:[function(_dereq_,module,exports){
 module.exports = { "default": _dereq_("core-js/library/fn/promise"), __esModule: true };
-},{"core-js/library/fn/promise":13}],8:[function(_dereq_,module,exports){
+},{"core-js/library/fn/promise":15}],10:[function(_dereq_,module,exports){
 module.exports = { "default": _dereq_("core-js/library/fn/set-immediate"), __esModule: true };
-},{"core-js/library/fn/set-immediate":14}],9:[function(_dereq_,module,exports){
+},{"core-js/library/fn/set-immediate":16}],11:[function(_dereq_,module,exports){
 "use strict";
 
 exports.__esModule = true;
@@ -48067,7 +48355,7 @@ exports.default = function (instance, Constructor) {
     throw new TypeError("Cannot call a class as a function");
   }
 };
-},{}],10:[function(_dereq_,module,exports){
+},{}],12:[function(_dereq_,module,exports){
 "use strict";
 
 exports.__esModule = true;
@@ -48095,47 +48383,47 @@ exports.default = function () {
     return Constructor;
   };
 }();
-},{"../core-js/object/define-property":6}],11:[function(_dereq_,module,exports){
+},{"../core-js/object/define-property":8}],13:[function(_dereq_,module,exports){
 var core  = _dereq_('../../modules/_core')
   , $JSON = core.JSON || (core.JSON = {stringify: JSON.stringify});
 module.exports = function stringify(it){ // eslint-disable-line no-unused-vars
   return $JSON.stringify.apply($JSON, arguments);
 };
-},{"../../modules/_core":22}],12:[function(_dereq_,module,exports){
+},{"../../modules/_core":24}],14:[function(_dereq_,module,exports){
 _dereq_('../../modules/es6.object.define-property');
 var $Object = _dereq_('../../modules/_core').Object;
 module.exports = function defineProperty(it, key, desc){
   return $Object.defineProperty(it, key, desc);
 };
-},{"../../modules/_core":22,"../../modules/es6.object.define-property":77}],13:[function(_dereq_,module,exports){
+},{"../../modules/_core":24,"../../modules/es6.object.define-property":79}],15:[function(_dereq_,module,exports){
 _dereq_('../modules/es6.object.to-string');
 _dereq_('../modules/es6.string.iterator');
 _dereq_('../modules/web.dom.iterable');
 _dereq_('../modules/es6.promise');
 module.exports = _dereq_('../modules/_core').Promise;
-},{"../modules/_core":22,"../modules/es6.object.to-string":78,"../modules/es6.promise":79,"../modules/es6.string.iterator":80,"../modules/web.dom.iterable":81}],14:[function(_dereq_,module,exports){
+},{"../modules/_core":24,"../modules/es6.object.to-string":80,"../modules/es6.promise":81,"../modules/es6.string.iterator":82,"../modules/web.dom.iterable":83}],16:[function(_dereq_,module,exports){
 _dereq_('../modules/web.immediate');
 module.exports = _dereq_('../modules/_core').setImmediate;
-},{"../modules/_core":22,"../modules/web.immediate":82}],15:[function(_dereq_,module,exports){
+},{"../modules/_core":24,"../modules/web.immediate":84}],17:[function(_dereq_,module,exports){
 module.exports = function(it){
   if(typeof it != 'function')throw TypeError(it + ' is not a function!');
   return it;
 };
-},{}],16:[function(_dereq_,module,exports){
+},{}],18:[function(_dereq_,module,exports){
 module.exports = function(){ /* empty */ };
-},{}],17:[function(_dereq_,module,exports){
+},{}],19:[function(_dereq_,module,exports){
 module.exports = function(it, Constructor, name, forbiddenField){
   if(!(it instanceof Constructor) || (forbiddenField !== undefined && forbiddenField in it)){
     throw TypeError(name + ': incorrect invocation!');
   } return it;
 };
-},{}],18:[function(_dereq_,module,exports){
+},{}],20:[function(_dereq_,module,exports){
 var isObject = _dereq_('./_is-object');
 module.exports = function(it){
   if(!isObject(it))throw TypeError(it + ' is not an object!');
   return it;
 };
-},{"./_is-object":39}],19:[function(_dereq_,module,exports){
+},{"./_is-object":41}],21:[function(_dereq_,module,exports){
 // false -> Array#indexOf
 // true  -> Array#includes
 var toIObject = _dereq_('./_to-iobject')
@@ -48157,7 +48445,7 @@ module.exports = function(IS_INCLUDES){
     } return !IS_INCLUDES && -1;
   };
 };
-},{"./_to-index":67,"./_to-iobject":69,"./_to-length":70}],20:[function(_dereq_,module,exports){
+},{"./_to-index":69,"./_to-iobject":71,"./_to-length":72}],22:[function(_dereq_,module,exports){
 // getting tag from 19.1.3.6 Object.prototype.toString()
 var cof = _dereq_('./_cof')
   , TAG = _dereq_('./_wks')('toStringTag')
@@ -48181,16 +48469,16 @@ module.exports = function(it){
     // ES3 arguments fallback
     : (B = cof(O)) == 'Object' && typeof O.callee == 'function' ? 'Arguments' : B;
 };
-},{"./_cof":21,"./_wks":74}],21:[function(_dereq_,module,exports){
+},{"./_cof":23,"./_wks":76}],23:[function(_dereq_,module,exports){
 var toString = {}.toString;
 
 module.exports = function(it){
   return toString.call(it).slice(8, -1);
 };
-},{}],22:[function(_dereq_,module,exports){
+},{}],24:[function(_dereq_,module,exports){
 var core = module.exports = {version: '2.4.0'};
 if(typeof __e == 'number')__e = core; // eslint-disable-line no-undef
-},{}],23:[function(_dereq_,module,exports){
+},{}],25:[function(_dereq_,module,exports){
 // optional / simple context binding
 var aFunction = _dereq_('./_a-function');
 module.exports = function(fn, that, length){
@@ -48211,18 +48499,18 @@ module.exports = function(fn, that, length){
     return fn.apply(that, arguments);
   };
 };
-},{"./_a-function":15}],24:[function(_dereq_,module,exports){
+},{"./_a-function":17}],26:[function(_dereq_,module,exports){
 // 7.2.1 RequireObjectCoercible(argument)
 module.exports = function(it){
   if(it == undefined)throw TypeError("Can't call method on  " + it);
   return it;
 };
-},{}],25:[function(_dereq_,module,exports){
+},{}],27:[function(_dereq_,module,exports){
 // Thank's IE8 for his funny defineProperty
 module.exports = !_dereq_('./_fails')(function(){
   return Object.defineProperty({}, 'a', {get: function(){ return 7; }}).a != 7;
 });
-},{"./_fails":29}],26:[function(_dereq_,module,exports){
+},{"./_fails":31}],28:[function(_dereq_,module,exports){
 var isObject = _dereq_('./_is-object')
   , document = _dereq_('./_global').document
   // in old IE typeof document.createElement is 'object'
@@ -48230,12 +48518,12 @@ var isObject = _dereq_('./_is-object')
 module.exports = function(it){
   return is ? document.createElement(it) : {};
 };
-},{"./_global":31,"./_is-object":39}],27:[function(_dereq_,module,exports){
+},{"./_global":33,"./_is-object":41}],29:[function(_dereq_,module,exports){
 // IE 8- don't enum bug keys
 module.exports = (
   'constructor,hasOwnProperty,isPrototypeOf,propertyIsEnumerable,toLocaleString,toString,valueOf'
 ).split(',');
-},{}],28:[function(_dereq_,module,exports){
+},{}],30:[function(_dereq_,module,exports){
 var global    = _dereq_('./_global')
   , core      = _dereq_('./_core')
   , ctx       = _dereq_('./_ctx')
@@ -48297,7 +48585,7 @@ $export.W = 32;  // wrap
 $export.U = 64;  // safe
 $export.R = 128; // real proto method for `library` 
 module.exports = $export;
-},{"./_core":22,"./_ctx":23,"./_global":31,"./_hide":33}],29:[function(_dereq_,module,exports){
+},{"./_core":24,"./_ctx":25,"./_global":33,"./_hide":35}],31:[function(_dereq_,module,exports){
 module.exports = function(exec){
   try {
     return !!exec();
@@ -48305,7 +48593,7 @@ module.exports = function(exec){
     return true;
   }
 };
-},{}],30:[function(_dereq_,module,exports){
+},{}],32:[function(_dereq_,module,exports){
 var ctx         = _dereq_('./_ctx')
   , call        = _dereq_('./_iter-call')
   , isArrayIter = _dereq_('./_is-array-iter')
@@ -48331,17 +48619,17 @@ var exports = module.exports = function(iterable, entries, fn, that, ITERATOR){
 };
 exports.BREAK  = BREAK;
 exports.RETURN = RETURN;
-},{"./_an-object":18,"./_ctx":23,"./_is-array-iter":38,"./_iter-call":40,"./_to-length":70,"./core.get-iterator-method":75}],31:[function(_dereq_,module,exports){
+},{"./_an-object":20,"./_ctx":25,"./_is-array-iter":40,"./_iter-call":42,"./_to-length":72,"./core.get-iterator-method":77}],33:[function(_dereq_,module,exports){
 // https://github.com/zloirock/core-js/issues/86#issuecomment-115759028
 var global = module.exports = typeof window != 'undefined' && window.Math == Math
   ? window : typeof self != 'undefined' && self.Math == Math ? self : Function('return this')();
 if(typeof __g == 'number')__g = global; // eslint-disable-line no-undef
-},{}],32:[function(_dereq_,module,exports){
+},{}],34:[function(_dereq_,module,exports){
 var hasOwnProperty = {}.hasOwnProperty;
 module.exports = function(it, key){
   return hasOwnProperty.call(it, key);
 };
-},{}],33:[function(_dereq_,module,exports){
+},{}],35:[function(_dereq_,module,exports){
 var dP         = _dereq_('./_object-dp')
   , createDesc = _dereq_('./_property-desc');
 module.exports = _dereq_('./_descriptors') ? function(object, key, value){
@@ -48350,13 +48638,13 @@ module.exports = _dereq_('./_descriptors') ? function(object, key, value){
   object[key] = value;
   return object;
 };
-},{"./_descriptors":25,"./_object-dp":49,"./_property-desc":56}],34:[function(_dereq_,module,exports){
+},{"./_descriptors":27,"./_object-dp":51,"./_property-desc":58}],36:[function(_dereq_,module,exports){
 module.exports = _dereq_('./_global').document && document.documentElement;
-},{"./_global":31}],35:[function(_dereq_,module,exports){
+},{"./_global":33}],37:[function(_dereq_,module,exports){
 module.exports = !_dereq_('./_descriptors') && !_dereq_('./_fails')(function(){
   return Object.defineProperty(_dereq_('./_dom-create')('div'), 'a', {get: function(){ return 7; }}).a != 7;
 });
-},{"./_descriptors":25,"./_dom-create":26,"./_fails":29}],36:[function(_dereq_,module,exports){
+},{"./_descriptors":27,"./_dom-create":28,"./_fails":31}],38:[function(_dereq_,module,exports){
 // fast apply, http://jsperf.lnkit.com/fast-apply/5
 module.exports = function(fn, args, that){
   var un = that === undefined;
@@ -48373,13 +48661,13 @@ module.exports = function(fn, args, that){
                       : fn.call(that, args[0], args[1], args[2], args[3]);
   } return              fn.apply(that, args);
 };
-},{}],37:[function(_dereq_,module,exports){
+},{}],39:[function(_dereq_,module,exports){
 // fallback for non-array-like ES3 and non-enumerable old V8 strings
 var cof = _dereq_('./_cof');
 module.exports = Object('z').propertyIsEnumerable(0) ? Object : function(it){
   return cof(it) == 'String' ? it.split('') : Object(it);
 };
-},{"./_cof":21}],38:[function(_dereq_,module,exports){
+},{"./_cof":23}],40:[function(_dereq_,module,exports){
 // check on default Array iterator
 var Iterators  = _dereq_('./_iterators')
   , ITERATOR   = _dereq_('./_wks')('iterator')
@@ -48388,11 +48676,11 @@ var Iterators  = _dereq_('./_iterators')
 module.exports = function(it){
   return it !== undefined && (Iterators.Array === it || ArrayProto[ITERATOR] === it);
 };
-},{"./_iterators":45,"./_wks":74}],39:[function(_dereq_,module,exports){
+},{"./_iterators":47,"./_wks":76}],41:[function(_dereq_,module,exports){
 module.exports = function(it){
   return typeof it === 'object' ? it !== null : typeof it === 'function';
 };
-},{}],40:[function(_dereq_,module,exports){
+},{}],42:[function(_dereq_,module,exports){
 // call something on iterator step with safe closing on error
 var anObject = _dereq_('./_an-object');
 module.exports = function(iterator, fn, value, entries){
@@ -48405,7 +48693,7 @@ module.exports = function(iterator, fn, value, entries){
     throw e;
   }
 };
-},{"./_an-object":18}],41:[function(_dereq_,module,exports){
+},{"./_an-object":20}],43:[function(_dereq_,module,exports){
 'use strict';
 var create         = _dereq_('./_object-create')
   , descriptor     = _dereq_('./_property-desc')
@@ -48419,7 +48707,7 @@ module.exports = function(Constructor, NAME, next){
   Constructor.prototype = create(IteratorPrototype, {next: descriptor(1, next)});
   setToStringTag(Constructor, NAME + ' Iterator');
 };
-},{"./_hide":33,"./_object-create":48,"./_property-desc":56,"./_set-to-string-tag":61,"./_wks":74}],42:[function(_dereq_,module,exports){
+},{"./_hide":35,"./_object-create":50,"./_property-desc":58,"./_set-to-string-tag":63,"./_wks":76}],44:[function(_dereq_,module,exports){
 'use strict';
 var LIBRARY        = _dereq_('./_library')
   , $export        = _dereq_('./_export')
@@ -48490,7 +48778,7 @@ module.exports = function(Base, NAME, Constructor, next, DEFAULT, IS_SET, FORCED
   }
   return methods;
 };
-},{"./_export":28,"./_has":32,"./_hide":33,"./_iter-create":41,"./_iterators":45,"./_library":46,"./_object-gpo":52,"./_redefine":58,"./_set-to-string-tag":61,"./_wks":74}],43:[function(_dereq_,module,exports){
+},{"./_export":30,"./_has":34,"./_hide":35,"./_iter-create":43,"./_iterators":47,"./_library":48,"./_object-gpo":54,"./_redefine":60,"./_set-to-string-tag":63,"./_wks":76}],45:[function(_dereq_,module,exports){
 var ITERATOR     = _dereq_('./_wks')('iterator')
   , SAFE_CLOSING = false;
 
@@ -48512,15 +48800,15 @@ module.exports = function(exec, skipClosing){
   } catch(e){ /* empty */ }
   return safe;
 };
-},{"./_wks":74}],44:[function(_dereq_,module,exports){
+},{"./_wks":76}],46:[function(_dereq_,module,exports){
 module.exports = function(done, value){
   return {value: value, done: !!done};
 };
-},{}],45:[function(_dereq_,module,exports){
-module.exports = {};
-},{}],46:[function(_dereq_,module,exports){
-module.exports = true;
 },{}],47:[function(_dereq_,module,exports){
+module.exports = {};
+},{}],48:[function(_dereq_,module,exports){
+module.exports = true;
+},{}],49:[function(_dereq_,module,exports){
 var global    = _dereq_('./_global')
   , macrotask = _dereq_('./_task').set
   , Observer  = global.MutationObserver || global.WebKitMutationObserver
@@ -48589,7 +48877,7 @@ module.exports = function(){
     } last = task;
   };
 };
-},{"./_cof":21,"./_global":31,"./_task":66}],48:[function(_dereq_,module,exports){
+},{"./_cof":23,"./_global":33,"./_task":68}],50:[function(_dereq_,module,exports){
 // 19.1.2.2 / 15.2.3.5 Object.create(O [, Properties])
 var anObject    = _dereq_('./_an-object')
   , dPs         = _dereq_('./_object-dps')
@@ -48630,7 +48918,7 @@ module.exports = Object.create || function create(O, Properties){
   } else result = createDict();
   return Properties === undefined ? result : dPs(result, Properties);
 };
-},{"./_an-object":18,"./_dom-create":26,"./_enum-bug-keys":27,"./_html":34,"./_object-dps":50,"./_shared-key":62}],49:[function(_dereq_,module,exports){
+},{"./_an-object":20,"./_dom-create":28,"./_enum-bug-keys":29,"./_html":36,"./_object-dps":52,"./_shared-key":64}],51:[function(_dereq_,module,exports){
 var anObject       = _dereq_('./_an-object')
   , IE8_DOM_DEFINE = _dereq_('./_ie8-dom-define')
   , toPrimitive    = _dereq_('./_to-primitive')
@@ -48647,7 +48935,7 @@ exports.f = _dereq_('./_descriptors') ? Object.defineProperty : function defineP
   if('value' in Attributes)O[P] = Attributes.value;
   return O;
 };
-},{"./_an-object":18,"./_descriptors":25,"./_ie8-dom-define":35,"./_to-primitive":72}],50:[function(_dereq_,module,exports){
+},{"./_an-object":20,"./_descriptors":27,"./_ie8-dom-define":37,"./_to-primitive":74}],52:[function(_dereq_,module,exports){
 var dP       = _dereq_('./_object-dp')
   , anObject = _dereq_('./_an-object')
   , getKeys  = _dereq_('./_object-keys');
@@ -48661,7 +48949,7 @@ module.exports = _dereq_('./_descriptors') ? Object.defineProperties : function 
   while(length > i)dP.f(O, P = keys[i++], Properties[P]);
   return O;
 };
-},{"./_an-object":18,"./_descriptors":25,"./_object-dp":49,"./_object-keys":54}],51:[function(_dereq_,module,exports){
+},{"./_an-object":20,"./_descriptors":27,"./_object-dp":51,"./_object-keys":56}],53:[function(_dereq_,module,exports){
 var pIE            = _dereq_('./_object-pie')
   , createDesc     = _dereq_('./_property-desc')
   , toIObject      = _dereq_('./_to-iobject')
@@ -48678,7 +48966,7 @@ exports.f = _dereq_('./_descriptors') ? gOPD : function getOwnPropertyDescriptor
   } catch(e){ /* empty */ }
   if(has(O, P))return createDesc(!pIE.f.call(O, P), O[P]);
 };
-},{"./_descriptors":25,"./_has":32,"./_ie8-dom-define":35,"./_object-pie":55,"./_property-desc":56,"./_to-iobject":69,"./_to-primitive":72}],52:[function(_dereq_,module,exports){
+},{"./_descriptors":27,"./_has":34,"./_ie8-dom-define":37,"./_object-pie":57,"./_property-desc":58,"./_to-iobject":71,"./_to-primitive":74}],54:[function(_dereq_,module,exports){
 // 19.1.2.9 / 15.2.3.2 Object.getPrototypeOf(O)
 var has         = _dereq_('./_has')
   , toObject    = _dereq_('./_to-object')
@@ -48692,7 +48980,7 @@ module.exports = Object.getPrototypeOf || function(O){
     return O.constructor.prototype;
   } return O instanceof Object ? ObjectProto : null;
 };
-},{"./_has":32,"./_shared-key":62,"./_to-object":71}],53:[function(_dereq_,module,exports){
+},{"./_has":34,"./_shared-key":64,"./_to-object":73}],55:[function(_dereq_,module,exports){
 var has          = _dereq_('./_has')
   , toIObject    = _dereq_('./_to-iobject')
   , arrayIndexOf = _dereq_('./_array-includes')(false)
@@ -48710,7 +48998,7 @@ module.exports = function(object, names){
   }
   return result;
 };
-},{"./_array-includes":19,"./_has":32,"./_shared-key":62,"./_to-iobject":69}],54:[function(_dereq_,module,exports){
+},{"./_array-includes":21,"./_has":34,"./_shared-key":64,"./_to-iobject":71}],56:[function(_dereq_,module,exports){
 // 19.1.2.14 / 15.2.3.14 Object.keys(O)
 var $keys       = _dereq_('./_object-keys-internal')
   , enumBugKeys = _dereq_('./_enum-bug-keys');
@@ -48718,9 +49006,9 @@ var $keys       = _dereq_('./_object-keys-internal')
 module.exports = Object.keys || function keys(O){
   return $keys(O, enumBugKeys);
 };
-},{"./_enum-bug-keys":27,"./_object-keys-internal":53}],55:[function(_dereq_,module,exports){
+},{"./_enum-bug-keys":29,"./_object-keys-internal":55}],57:[function(_dereq_,module,exports){
 exports.f = {}.propertyIsEnumerable;
-},{}],56:[function(_dereq_,module,exports){
+},{}],58:[function(_dereq_,module,exports){
 module.exports = function(bitmap, value){
   return {
     enumerable  : !(bitmap & 1),
@@ -48729,7 +49017,7 @@ module.exports = function(bitmap, value){
     value       : value
   };
 };
-},{}],57:[function(_dereq_,module,exports){
+},{}],59:[function(_dereq_,module,exports){
 var hide = _dereq_('./_hide');
 module.exports = function(target, src, safe){
   for(var key in src){
@@ -48737,9 +49025,9 @@ module.exports = function(target, src, safe){
     else hide(target, key, src[key]);
   } return target;
 };
-},{"./_hide":33}],58:[function(_dereq_,module,exports){
+},{"./_hide":35}],60:[function(_dereq_,module,exports){
 module.exports = _dereq_('./_hide');
-},{"./_hide":33}],59:[function(_dereq_,module,exports){
+},{"./_hide":35}],61:[function(_dereq_,module,exports){
 // Works with __proto__ only. Old v8 can't work with null proto objects.
 /* eslint-disable no-proto */
 var isObject = _dereq_('./_is-object')
@@ -48765,7 +49053,7 @@ module.exports = {
     }({}, false) : undefined),
   check: check
 };
-},{"./_an-object":18,"./_ctx":23,"./_is-object":39,"./_object-gopd":51}],60:[function(_dereq_,module,exports){
+},{"./_an-object":20,"./_ctx":25,"./_is-object":41,"./_object-gopd":53}],62:[function(_dereq_,module,exports){
 'use strict';
 var global      = _dereq_('./_global')
   , core        = _dereq_('./_core')
@@ -48780,7 +49068,7 @@ module.exports = function(KEY){
     get: function(){ return this; }
   });
 };
-},{"./_core":22,"./_descriptors":25,"./_global":31,"./_object-dp":49,"./_wks":74}],61:[function(_dereq_,module,exports){
+},{"./_core":24,"./_descriptors":27,"./_global":33,"./_object-dp":51,"./_wks":76}],63:[function(_dereq_,module,exports){
 var def = _dereq_('./_object-dp').f
   , has = _dereq_('./_has')
   , TAG = _dereq_('./_wks')('toStringTag');
@@ -48788,20 +49076,20 @@ var def = _dereq_('./_object-dp').f
 module.exports = function(it, tag, stat){
   if(it && !has(it = stat ? it : it.prototype, TAG))def(it, TAG, {configurable: true, value: tag});
 };
-},{"./_has":32,"./_object-dp":49,"./_wks":74}],62:[function(_dereq_,module,exports){
+},{"./_has":34,"./_object-dp":51,"./_wks":76}],64:[function(_dereq_,module,exports){
 var shared = _dereq_('./_shared')('keys')
   , uid    = _dereq_('./_uid');
 module.exports = function(key){
   return shared[key] || (shared[key] = uid(key));
 };
-},{"./_shared":63,"./_uid":73}],63:[function(_dereq_,module,exports){
+},{"./_shared":65,"./_uid":75}],65:[function(_dereq_,module,exports){
 var global = _dereq_('./_global')
   , SHARED = '__core-js_shared__'
   , store  = global[SHARED] || (global[SHARED] = {});
 module.exports = function(key){
   return store[key] || (store[key] = {});
 };
-},{"./_global":31}],64:[function(_dereq_,module,exports){
+},{"./_global":33}],66:[function(_dereq_,module,exports){
 // 7.3.20 SpeciesConstructor(O, defaultConstructor)
 var anObject  = _dereq_('./_an-object')
   , aFunction = _dereq_('./_a-function')
@@ -48810,7 +49098,7 @@ module.exports = function(O, D){
   var C = anObject(O).constructor, S;
   return C === undefined || (S = anObject(C)[SPECIES]) == undefined ? D : aFunction(S);
 };
-},{"./_a-function":15,"./_an-object":18,"./_wks":74}],65:[function(_dereq_,module,exports){
+},{"./_a-function":17,"./_an-object":20,"./_wks":76}],67:[function(_dereq_,module,exports){
 var toInteger = _dereq_('./_to-integer')
   , defined   = _dereq_('./_defined');
 // true  -> String#at
@@ -48828,7 +49116,7 @@ module.exports = function(TO_STRING){
       : TO_STRING ? s.slice(i, i + 2) : (a - 0xd800 << 10) + (b - 0xdc00) + 0x10000;
   };
 };
-},{"./_defined":24,"./_to-integer":68}],66:[function(_dereq_,module,exports){
+},{"./_defined":26,"./_to-integer":70}],68:[function(_dereq_,module,exports){
 var ctx                = _dereq_('./_ctx')
   , invoke             = _dereq_('./_invoke')
   , html               = _dereq_('./_html')
@@ -48904,7 +49192,7 @@ module.exports = {
   set:   setTask,
   clear: clearTask
 };
-},{"./_cof":21,"./_ctx":23,"./_dom-create":26,"./_global":31,"./_html":34,"./_invoke":36}],67:[function(_dereq_,module,exports){
+},{"./_cof":23,"./_ctx":25,"./_dom-create":28,"./_global":33,"./_html":36,"./_invoke":38}],69:[function(_dereq_,module,exports){
 var toInteger = _dereq_('./_to-integer')
   , max       = Math.max
   , min       = Math.min;
@@ -48912,34 +49200,34 @@ module.exports = function(index, length){
   index = toInteger(index);
   return index < 0 ? max(index + length, 0) : min(index, length);
 };
-},{"./_to-integer":68}],68:[function(_dereq_,module,exports){
+},{"./_to-integer":70}],70:[function(_dereq_,module,exports){
 // 7.1.4 ToInteger
 var ceil  = Math.ceil
   , floor = Math.floor;
 module.exports = function(it){
   return isNaN(it = +it) ? 0 : (it > 0 ? floor : ceil)(it);
 };
-},{}],69:[function(_dereq_,module,exports){
+},{}],71:[function(_dereq_,module,exports){
 // to indexed object, toObject with fallback for non-array-like ES3 strings
 var IObject = _dereq_('./_iobject')
   , defined = _dereq_('./_defined');
 module.exports = function(it){
   return IObject(defined(it));
 };
-},{"./_defined":24,"./_iobject":37}],70:[function(_dereq_,module,exports){
+},{"./_defined":26,"./_iobject":39}],72:[function(_dereq_,module,exports){
 // 7.1.15 ToLength
 var toInteger = _dereq_('./_to-integer')
   , min       = Math.min;
 module.exports = function(it){
   return it > 0 ? min(toInteger(it), 0x1fffffffffffff) : 0; // pow(2, 53) - 1 == 9007199254740991
 };
-},{"./_to-integer":68}],71:[function(_dereq_,module,exports){
+},{"./_to-integer":70}],73:[function(_dereq_,module,exports){
 // 7.1.13 ToObject(argument)
 var defined = _dereq_('./_defined');
 module.exports = function(it){
   return Object(defined(it));
 };
-},{"./_defined":24}],72:[function(_dereq_,module,exports){
+},{"./_defined":26}],74:[function(_dereq_,module,exports){
 // 7.1.1 ToPrimitive(input [, PreferredType])
 var isObject = _dereq_('./_is-object');
 // instead of the ES6 spec version, we didn't implement @@toPrimitive case
@@ -48952,13 +49240,13 @@ module.exports = function(it, S){
   if(!S && typeof (fn = it.toString) == 'function' && !isObject(val = fn.call(it)))return val;
   throw TypeError("Can't convert object to primitive value");
 };
-},{"./_is-object":39}],73:[function(_dereq_,module,exports){
+},{"./_is-object":41}],75:[function(_dereq_,module,exports){
 var id = 0
   , px = Math.random();
 module.exports = function(key){
   return 'Symbol('.concat(key === undefined ? '' : key, ')_', (++id + px).toString(36));
 };
-},{}],74:[function(_dereq_,module,exports){
+},{}],76:[function(_dereq_,module,exports){
 var store      = _dereq_('./_shared')('wks')
   , uid        = _dereq_('./_uid')
   , Symbol     = _dereq_('./_global').Symbol
@@ -48970,7 +49258,7 @@ var $exports = module.exports = function(name){
 };
 
 $exports.store = store;
-},{"./_global":31,"./_shared":63,"./_uid":73}],75:[function(_dereq_,module,exports){
+},{"./_global":33,"./_shared":65,"./_uid":75}],77:[function(_dereq_,module,exports){
 var classof   = _dereq_('./_classof')
   , ITERATOR  = _dereq_('./_wks')('iterator')
   , Iterators = _dereq_('./_iterators');
@@ -48979,7 +49267,7 @@ module.exports = _dereq_('./_core').getIteratorMethod = function(it){
     || it['@@iterator']
     || Iterators[classof(it)];
 };
-},{"./_classof":20,"./_core":22,"./_iterators":45,"./_wks":74}],76:[function(_dereq_,module,exports){
+},{"./_classof":22,"./_core":24,"./_iterators":47,"./_wks":76}],78:[function(_dereq_,module,exports){
 'use strict';
 var addToUnscopables = _dereq_('./_add-to-unscopables')
   , step             = _dereq_('./_iter-step')
@@ -49014,13 +49302,13 @@ Iterators.Arguments = Iterators.Array;
 addToUnscopables('keys');
 addToUnscopables('values');
 addToUnscopables('entries');
-},{"./_add-to-unscopables":16,"./_iter-define":42,"./_iter-step":44,"./_iterators":45,"./_to-iobject":69}],77:[function(_dereq_,module,exports){
+},{"./_add-to-unscopables":18,"./_iter-define":44,"./_iter-step":46,"./_iterators":47,"./_to-iobject":71}],79:[function(_dereq_,module,exports){
 var $export = _dereq_('./_export');
 // 19.1.2.4 / 15.2.3.6 Object.defineProperty(O, P, Attributes)
 $export($export.S + $export.F * !_dereq_('./_descriptors'), 'Object', {defineProperty: _dereq_('./_object-dp').f});
-},{"./_descriptors":25,"./_export":28,"./_object-dp":49}],78:[function(_dereq_,module,exports){
+},{"./_descriptors":27,"./_export":30,"./_object-dp":51}],80:[function(_dereq_,module,exports){
 
-},{}],79:[function(_dereq_,module,exports){
+},{}],81:[function(_dereq_,module,exports){
 'use strict';
 var LIBRARY            = _dereq_('./_library')
   , global             = _dereq_('./_global')
@@ -49322,7 +49610,7 @@ $export($export.S + $export.F * !(USE_NATIVE && _dereq_('./_iter-detect')(functi
     return capability.promise;
   }
 });
-},{"./_a-function":15,"./_an-instance":17,"./_an-object":18,"./_classof":20,"./_core":22,"./_ctx":23,"./_export":28,"./_for-of":30,"./_global":31,"./_is-object":39,"./_iter-detect":43,"./_library":46,"./_microtask":47,"./_redefine-all":57,"./_set-proto":59,"./_set-species":60,"./_set-to-string-tag":61,"./_species-constructor":64,"./_task":66,"./_wks":74}],80:[function(_dereq_,module,exports){
+},{"./_a-function":17,"./_an-instance":19,"./_an-object":20,"./_classof":22,"./_core":24,"./_ctx":25,"./_export":30,"./_for-of":32,"./_global":33,"./_is-object":41,"./_iter-detect":45,"./_library":48,"./_microtask":49,"./_redefine-all":59,"./_set-proto":61,"./_set-species":62,"./_set-to-string-tag":63,"./_species-constructor":66,"./_task":68,"./_wks":76}],82:[function(_dereq_,module,exports){
 'use strict';
 var $at  = _dereq_('./_string-at')(true);
 
@@ -49340,7 +49628,7 @@ _dereq_('./_iter-define')(String, 'String', function(iterated){
   this._i += point.length;
   return {value: point, done: false};
 });
-},{"./_iter-define":42,"./_string-at":65}],81:[function(_dereq_,module,exports){
+},{"./_iter-define":44,"./_string-at":67}],83:[function(_dereq_,module,exports){
 _dereq_('./es6.array.iterator');
 var global        = _dereq_('./_global')
   , hide          = _dereq_('./_hide')
@@ -49354,14 +49642,14 @@ for(var collections = ['NodeList', 'DOMTokenList', 'MediaList', 'StyleSheetList'
   if(proto && !proto[TO_STRING_TAG])hide(proto, TO_STRING_TAG, NAME);
   Iterators[NAME] = Iterators.Array;
 }
-},{"./_global":31,"./_hide":33,"./_iterators":45,"./_wks":74,"./es6.array.iterator":76}],82:[function(_dereq_,module,exports){
+},{"./_global":33,"./_hide":35,"./_iterators":47,"./_wks":76,"./es6.array.iterator":78}],84:[function(_dereq_,module,exports){
 var $export = _dereq_('./_export')
   , $task   = _dereq_('./_task');
 $export($export.G + $export.B, {
   setImmediate:   $task.set,
   clearImmediate: $task.clear
 });
-},{"./_export":28,"./_task":66}],83:[function(_dereq_,module,exports){
+},{"./_export":30,"./_task":68}],85:[function(_dereq_,module,exports){
 (function (global){
 /**
  * @license
@@ -65769,7 +66057,7 @@ $export($export.G + $export.B, {
 }.call(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],84:[function(_dereq_,module,exports){
+},{}],86:[function(_dereq_,module,exports){
 module.exports={
 	"version": "2016d",
 	"zones": [
@@ -66365,11 +66653,11 @@ module.exports={
 		"Pacific/Pohnpei|Pacific/Ponape"
 	]
 }
-},{}],85:[function(_dereq_,module,exports){
+},{}],87:[function(_dereq_,module,exports){
 var moment = module.exports = _dereq_("./moment-timezone");
 moment.tz.load(_dereq_('./data/packed/latest.json'));
 
-},{"./data/packed/latest.json":84,"./moment-timezone":86}],86:[function(_dereq_,module,exports){
+},{"./data/packed/latest.json":86,"./moment-timezone":88}],88:[function(_dereq_,module,exports){
 //! moment-timezone.js
 //! version : 0.5.4
 //! author : Tim Wood
@@ -66972,7 +67260,7 @@ moment.tz.load(_dereq_('./data/packed/latest.json'));
 	return moment;
 }));
 
-},{"moment":87}],87:[function(_dereq_,module,exports){
+},{"moment":89}],89:[function(_dereq_,module,exports){
 //! moment.js
 //! version : 2.13.0
 //! authors : Tim Wood, Iskren Chernev, Moment.js contributors
@@ -71336,9 +71624,24 @@ var Bot = function Bot(send) {
     /** The message to send when nothing matches. */
     this.failMessage = 'What?';
     this.handleCommand = function (command) {
-        return _this.nlc.handleCommand(command).catch(function () {
-            return _this.send(_this.failMessage);
+        return _this.nlc.handleCommand({
+            userId: 'user',
+            command: command
+        }).catch(function (questionIntentName) {
+            if (!questionIntentName) {
+                // Send the fail message, but only if this was not a failure from an answer.
+                // TODO: Handle this better in nlc.
+                _this.send(_this.failMessage);
+            }
         });
+    };
+    this.addItem = function (item) {
+        var success = _this.todo.addItem(item);
+        if (success) {
+            _this.send('Okay, added "' + item + '" to your todo list!');
+        } else {
+            _this.send('Sorry, "' + item + '" is already on your todo list!');
+        }
     };
     this.nlc = new NLC();
     this.todo = new Todo_1.default();
@@ -71356,13 +71659,31 @@ var Bot = function Bot(send) {
             type: 'STRING'
         }],
         utterances: ['add {Item} to my list', 'put {Item} to my list', 'add {Item} to the list', 'put {Item} to the list', 'add {Item} to my todo list', 'put {Item} on my todo list', 'add {Item} to the todo list', 'put {Item} on the todo list', 'remind me to {Item}', 'have me {Item}', 'get me to {Item}', 'make me {Item}', 'add {Item}'],
-        callback: function callback(item) {
-            var success = _this.todo.addItem(item);
-            if (success) {
-                _this.send('Okay, added "' + item + '" to your todo list!');
-            } else {
-                _this.send('Sorry, "' + item + '" is already on your todo list!');
-            }
+        callback: this.addItem
+    });
+    // Asks the user what they want to add to their list.
+    this.nlc.registerQuestionIntent({
+        intent: 'ADD_QUESTION',
+        slotType: 'STRING',
+        questionCallback: function questionCallback() {
+            return _this.send('What do you want to add to your list?');
+        },
+        successCallback: function successCallback(userId, item) {
+            return _this.addItem(item);
+        },
+        cancelCallback: function cancelCallback() {
+            return _this.send('Okay, never mind.');
+        },
+        failCallback: function failCallback() {
+            return _this.send('Sorry, I\'m not sure what you mean.');
+        }
+    });
+    // Intent for adding an item, but not including what they want to do.
+    this.nlc.registerIntent({
+        intent: 'ADD_DIALOG',
+        utterances: ['add to my list', 'put on my list', 'add to the list', 'put on the list', 'add to my todo list', 'put on my todo list', 'add to the todo list', 'put on the todo list', 'remind me', 'make me', 'add'],
+        callback: function callback() {
+            return _this.nlc.ask('user', 'ADD_QUESTION');
         }
     });
     this.nlc.registerIntent({

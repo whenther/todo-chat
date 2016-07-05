@@ -46,15 +46,36 @@ class Bot {
         'make me {Item}',
         'add {Item}'
       ],
-      callback: (item: string) => {
-        const success = this.todo.addItem(item);
+      callback: this.addItem
+    });
 
-        if (success) {
-          this.send(`Okay, added "${item}" to your todo list!`);
-        } else {
-          this.send(`Sorry, "${item}" is already on your todo list!`);
-        }
-      }
+    // Asks the user what they want to add to their list.
+    this.nlc.registerQuestionIntent({
+      intent: 'ADD_QUESTION',
+      slotType: 'STRING',
+      questionCallback: () => this.send(`What do you want to add to your list?`),
+      successCallback: (userId, item: string) => this.addItem(item),
+      cancelCallback: () => this.send(`Okay, never mind.`),
+      failCallback: () => this.send(`Sorry, I'm not sure what you mean.`)
+    });
+
+    // Intent for adding an item, but not including what they want to do.
+    this.nlc.registerIntent({
+      intent: 'ADD_DIALOG',
+      utterances: [
+        'add to my list',
+        'put on my list',
+        'add to the list',
+        'put on the list',
+        'add to my todo list',
+        'put on my todo list',
+        'add to the todo list',
+        'put on the todo list',
+        'remind me',
+        'make me',
+        'add'
+      ],
+      callback: () => this.nlc.ask('user', 'ADD_QUESTION')
     });
 
     this.nlc.registerIntent({
@@ -144,8 +165,26 @@ class Bot {
   }
 
   public handleCommand = (command) => {
-    return this.nlc.handleCommand(command)
-      .catch(() => this.send(this.failMessage));
+    return this.nlc.handleCommand({
+      userId: 'user',
+      command
+    }).catch((questionIntentName: string) => {
+      if (!questionIntentName) {
+        // Send the fail message, but only if this was not a failure from an answer.
+        // TODO: Handle this better in nlc.
+        this.send(this.failMessage);
+      }
+    });
+  };
+
+  private addItem = (item: string) => {
+    const success = this.todo.addItem(item);
+
+    if (success) {
+      this.send(`Okay, added "${item}" to your todo list!`);
+    } else {
+      this.send(`Sorry, "${item}" is already on your todo list!`);
+    }
   };
 }
 
