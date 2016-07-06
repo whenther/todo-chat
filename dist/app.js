@@ -47516,19 +47516,19 @@ var NaturalLanguageCommander = function () {
             });
         };
         /**
-         * Register a question intent. Bound to this.
+         * Register a question. Bound to this.
          * @param intent
          * @returns true if added, false if the intent name already exists.
          */
-        this.registerQuestionIntent = function (intent) {
+        this.registerQuestion = function (questionData) {
             // Don't allow duplicate intents.
-            if (_this.doesIntentExist(intent.intent)) {
+            if (_this.doesIntentExist(questionData.name)) {
                 return false;
             }
-            // Record the intent name for checking for duplicates.
-            _this.intentNames.push(intent.intent);
+            // Record the question name for checking for duplicates.
+            _this.intentNames.push(questionData.name);
             // Set up the question.
-            _this.questions[intent.intent] = new Question_1.default(_this, intent);
+            _this.questions[questionData.name] = new Question_1.default(_this, questionData);
         };
         this.slotTypes = {};
         this.intentNames = [];
@@ -47707,7 +47707,7 @@ var NaturalLanguageCommander = function () {
 
             // If this user has an active question, grab it.
             var question = this.getActiveQuestion(userId);
-            var questionName = question.intent.intent;
+            var questionName = question.name;
             // Try to answer the question with the command.
             question.answer(command, data || userId).then(function () {
                 _this3.finishQuestion(userId);
@@ -48078,15 +48078,16 @@ var _createClass3 = _interopRequireDefault(_createClass2);
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var Question = function () {
-    function Question(parentNlc, intent) {
+    function Question(parentNlc, questionData) {
         (0, _classCallCheck3.default)(this, Question);
 
-        this.intent = intent;
+        this.questionData = questionData;
         this.JUST_THE_SLOT_UTTERANCE = ['{Slot}'];
         // Set up a new NLC instance, with access to the parent slot types.
         this.nlc = parentNlc.clone();
+        this.name = this.questionData.name;
         // Register the cancel intent first, so it matches first.
-        if (this.intent.cancelCallback) {
+        if (this.questionData.cancelCallback) {
             this.nlc.registerIntent(this.cancelIntent);
         }
         // Register an intent for the question.
@@ -48096,7 +48097,7 @@ var Question = function () {
     (0, _createClass3.default)(Question, [{
         key: 'ask',
         value: function ask(data) {
-            this.intent.questionCallback(data);
+            this.questionData.questionCallback(data);
         }
         /**
          * Check an answer against the question matcher.
@@ -48116,7 +48117,7 @@ var Question = function () {
             }
             return commandPromise.catch(function () {
                 // Handle the failure.
-                _this.intent.failCallback(data);
+                _this.questionData.failCallback(data);
                 // Rethrow to pass the error along.
                 throw new Error();
             });
@@ -48126,15 +48127,15 @@ var Question = function () {
     }, {
         key: 'questionIntent',
         get: function get() {
-            var utterances = this.intent.utterances || this.JUST_THE_SLOT_UTTERANCE;
+            var utterances = this.questionData.utterances || this.JUST_THE_SLOT_UTTERANCE;
             return {
-                intent: this.intent.intent,
+                intent: this.name,
                 slots: [{
                     name: 'Slot',
-                    type: this.intent.slotType
+                    type: this.questionData.slotType
                 }],
                 utterances: utterances,
-                callback: this.intent.successCallback
+                callback: this.questionData.successCallback
             };
         }
         /** An intent for cancelling the question. */
@@ -48142,7 +48143,7 @@ var Question = function () {
     }, {
         key: 'cancelIntent',
         get: function get() {
-            var utterances = this.intent.utterances || this.JUST_THE_SLOT_UTTERANCE;
+            var utterances = this.questionData.utterances || this.JUST_THE_SLOT_UTTERANCE;
             return {
                 intent: 'CANCEL',
                 slots: [{
@@ -48150,7 +48151,7 @@ var Question = function () {
                     type: 'NEVERMIND'
                 }],
                 utterances: this.JUST_THE_SLOT_UTTERANCE,
-                callback: this.intent.cancelCallback
+                callback: this.questionData.cancelCallback
             };
         }
     }]);
@@ -71695,8 +71696,8 @@ var Bot = function Bot(send) {
         callback: this.addItem
     });
     // Asks the user what they want to add to their list.
-    this.nlc.registerQuestionIntent({
-        intent: 'ADD_QUESTION',
+    this.nlc.registerQuestion({
+        name: 'ADD_QUESTION',
         slotType: 'STRING',
         questionCallback: function questionCallback() {
             return _this.send('What do you want to add to your list?');
