@@ -54,7 +54,7 @@ class Bot {
       intent: 'ADD_QUESTION',
       slotType: 'STRING',
       questionCallback: () => this.send(`What do you want to add to your list?`),
-      successCallback: (userId, item: string) => this.addItem(item),
+      successCallback: (item: string) => this.addItem(item),
       cancelCallback: () => this.send(`Okay, never mind.`),
       failCallback: () => this.send(`Sorry, I'm not sure what you mean.`)
     });
@@ -75,7 +75,7 @@ class Bot {
         'make me',
         'add'
       ],
-      callback: () => this.nlc.ask('user', 'ADD_QUESTION')
+      callback: () => this.nlc.ask('ADD_QUESTION')
     });
 
     this.nlc.registerIntent({
@@ -165,16 +165,14 @@ class Bot {
   }
 
   public handleCommand = (command) => {
-    return this.nlc.handleCommand({
-      userId: 'user',
-      command
-    }).catch((questionIntentName: string) => {
-      if (!questionIntentName) {
-        // Send the fail message, but only if this was not a failure from an answer.
-        // TODO: Handle this better in nlc.
-        this.send(this.failMessage);
-      }
-    });
+    return this.nlc.handleCommand(command)
+      .catch((questionIntentName: string) => {
+        if (!questionIntentName) {
+          // Send the fail message, but only if this was not a failure from an answer.
+          // TODO: Handle this better in nlc.
+          this.send(this.failMessage);
+        }
+      });
   };
 
   private addItem = (item: string) => {
