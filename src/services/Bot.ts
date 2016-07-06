@@ -50,8 +50,8 @@ class Bot {
     });
 
     // Asks the user what they want to add to their list.
-    this.nlc.registerQuestionIntent({
-      intent: 'ADD_QUESTION',
+    this.nlc.registerQuestion({
+      name: 'ADD_QUESTION',
       slotType: 'STRING',
       questionCallback: () => this.send(`What do you want to add to your list?`),
       successCallback: (item: string) => this.addItem(item),
