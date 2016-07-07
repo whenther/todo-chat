@@ -47536,17 +47536,32 @@ var NaturalLanguageCommander = function () {
         this.questions = {};
         this.activeQuestions = {};
         this.matchers = [];
+        // Noop the notFoundCallback.
+        this.notFoundCallback = function () {};
         // Add the standard slot types.
         _.forOwn(standardSlots, this.addSlotType);
     }
     /**
-     * Get a fresh copy of this instance of NLC, but with the same slotTypes
-     * already registered.
-     * @returns the fresh instance.
+     * Register a callback to be called when a command doesn't match.
+     * Isn't called when an answer command doesn't match, since that is handled
+     * elsewhere.
+     * @param data - Arbitrary data to pass to the callback.
+     * @param callback - Callback to run on failure. Optionally passed data from handleCommand.
      */
 
 
     (0, _createClass3.default)(NaturalLanguageCommander, [{
+        key: 'registerNotFound',
+        value: function registerNotFound(callback) {
+            this.notFoundCallback = callback;
+        }
+        /**
+         * Get a fresh copy of this instance of NLC, but with the same slotTypes
+         * already registered.
+         * @returns the fresh instance.
+         */
+
+    }, {
         key: 'clone',
         value: function clone() {
             var nlc = new NaturalLanguageCommander();
@@ -47621,7 +47636,9 @@ var NaturalLanguageCommander = function () {
                     // If there is one, answer it and handle the deferred in there.
                     _this2.handleQuestionAnswer(deferred, data, command, userId);
                 } else {
-                    // Otherwise just reject the promise, since there was no match.
+                    // Otherwise call the not found handler, since there was no match.
+                    _this2.notFoundCallback(data);
+                    // Also reject the promise for logging.
                     deferred.reject();
                 }
             });
@@ -47630,6 +47647,7 @@ var NaturalLanguageCommander = function () {
     }, {
         key: 'ask',
         value: function ask(optionsOrQuestion) {
+            var deferred = new Deferred_1.default();
             // Handle overload.
             var data = void 0;
             var userId = void 0;
@@ -47643,17 +47661,24 @@ var NaturalLanguageCommander = function () {
             }
             // Pull the question from the list of registered questions.
             var question = this.questions[questionName];
-            // Fail if the question wasn't set up.
-            if (!question) {
-                return false;
+            // If the question exists, make it active.
+            if (question) {
+                // Make the question active.
+                this.setActiveQuestion(userId, question);
             }
-            // Make the question active.
-            this.setActiveQuestion(userId, question);
-            // Ask the question after a delay.
+            // Delay for async.
             delay(function () {
-                question.ask(data || userId);
+                if (question) {
+                    // Ask the question after a delay.
+                    question.ask(data || userId);
+                    // Resolve.
+                    deferred.resolve(true);
+                } else {
+                    // Reject the promise if the question isn't set up.
+                    deferred.reject(false);
+                }
             });
-            return true;
+            return deferred.promise;
         }
         /**
          * Cleans up a command for processing.
@@ -47663,7 +47688,7 @@ var NaturalLanguageCommander = function () {
     }, {
         key: 'cleanCommand',
         value: function cleanCommand(command) {
-            return command.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
+            return command.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').trim();
         }
     }, {
         key: 'doesIntentExist',
@@ -71661,13 +71686,7 @@ var Bot = function Bot(send) {
     /** The message to send when nothing matches. */
     this.failMessage = 'What?';
     this.handleCommand = function (command) {
-        return _this.nlc.handleCommand(command).catch(function (questionIntentName) {
-            if (!questionIntentName) {
-                // Send the fail message, but only if this was not a failure from an answer.
-                // TODO: Handle this better in nlc.
-                _this.send(_this.failMessage);
-            }
-        });
+        return _this.nlc.handleCommand(command);
     };
     this.addItem = function (item) {
         var success = _this.todo.addItem(item);
@@ -71768,6 +71787,9 @@ var Bot = function Bot(send) {
             _this.send('"what\'s on my todo list" or "do I have anything to do"');
             _this.send('"mark {Number} as done" or "I finished {Number}"');
         }
+    });
+    this.nlc.registerNotFound(function () {
+        return _this.send(_this.failMessage);
     });
 };
 
