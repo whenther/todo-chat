@@ -162,17 +162,12 @@ class Bot {
         this.send(`"mark {Number} as done" or "I finished {Number}"`);
       } 
     });
+
+    this.nlc.registerNotFound(() => this.send(this.failMessage));
   }
 
   public handleCommand = (command) => {
-    return this.nlc.handleCommand(command)
-      .catch((questionIntentName: string) => {
-        if (!questionIntentName) {
-          // Send the fail message, but only if this was not a failure from an answer.
-          // TODO: Handle this better in nlc.
-          this.send(this.failMessage);
-        }
-      });
+    return this.nlc.handleCommand(command);
   };
 
   private addItem = (item: string) => {
