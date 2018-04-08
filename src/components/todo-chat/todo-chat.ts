@@ -1,6 +1,6 @@
-import lodash = require('lodash');
+import lodash = require("lodash");
 
-import Bot from '../../services/bot';
+import Bot from "../../services/bot";
 
 export interface IMessage {
   text: string;
@@ -12,11 +12,8 @@ export class TodoChatController {
   public messages: IMessage[] = [];
   private bot: Bot;
 
-  constructor(
-    private $scope: ng.IScope,
-    private $sce
-  ) {
-    'ngInject';
+  constructor(private $scope: ng.IScope, private $sce) {
+    "ngInject";
 
     this.bot = new Bot(this.onRecieve);
   }
@@ -65,7 +62,7 @@ export class TodoChatController {
 }
 
 const todoChat: ng.IComponentOptions = {
-  template: require('./todo-chat.html'),
+  template: require("./todo-chat.html"),
   controller: TodoChatController
 };
 

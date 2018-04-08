@@ -1,25 +1,21 @@
-import lodash = require('lodash');
+import lodash = require("lodash");
 
 export class EntryBoxController {
   public command: string;
   private onSend: (args: { command: string }) => void;
 
-  constructor(
-    private $element: JQuery
-  ) {
-    
-  }
+  constructor(private $element: JQuery) {}
 
   $onInit() {
-    this.$element.find('textarea').focus();
+    this.$element.find("textarea").focus();
   }
 
   public sendCommand(event: JQueryEventObject) {
     if (event.keyCode === 13) {
       // Pass command up.
-      this.onSend({command: this.command});
+      this.onSend({ command: this.command });
       // Clear box.
-      this.command = '';
+      this.command = "";
       // Stop from adding linebreak.
       event.preventDefault();
     }
@@ -28,9 +24,9 @@ export class EntryBoxController {
 
 const entryBox: ng.IComponentOptions = {
   bindings: {
-    onSend: '&'
+    onSend: "&"
   },
-  template: require('./entry-box.html'),
+  template: require("./entry-box.html"),
   controller: EntryBoxController
 };
 

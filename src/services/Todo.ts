@@ -1,11 +1,11 @@
-import _ = require('lodash');
+import _ = require("lodash");
 
 /** Represents a todo list. */
 class Todo {
   /** The internal list of items. */
   private list: string[];
 
-  /** 
+  /**
    * Create a list.
    * @param list - The items to initialize with.
    */
@@ -43,7 +43,7 @@ class Todo {
     return _.clone(this.list);
   }
 
-  /** 
+  /**
    * Find an item by index
    * @param index - the item index
    * @returns the item if found, otherwise undefined.
@@ -58,14 +58,18 @@ class Todo {
    * @returns an array of possible matches, empty if none found.
    */
   getItemsByFilter(filter: string): string[] {
-    return _.reduce(this.list, (matches: string[], item: string) => {
-      // Include the item if the search filter exists within it.
-      if (item.includes(filter)) {
-        matches.push(item);
-      }
+    return _.reduce(
+      this.list,
+      (matches: string[], item: string) => {
+        // Include the item if the search filter exists within it.
+        if (item.includes(filter)) {
+          matches.push(item);
+        }
 
-      return matches; 
-    }, []);
+        return matches;
+      },
+      []
+    );
   }
 
   /**

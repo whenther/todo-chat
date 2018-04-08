@@ -12,19 +12,18 @@
     "prebuild": "npm run clean && npm run copy",
     "clean": "rimraf dist",
     "copy": "mkdirp dist && ncp src/index.html dist/index.html",
-    "budo": "budo src/app.ts:app.js --live --open --dir ./dist -- -p [ tsify ] -t [ babelify --presets [ es2015 ] --extensions .ts ] -t [ stringify --extensions [ .html ] ]",
-    "browserify": "browserify src/app.ts -p [ tsify ] -t [ babelify --presets [ es2015 ] --extensions .ts .ts ]  -t [ stringify --extensions [ .html ] ] -o dist/app.js",
-    "sass-dev": "npm run sass-build && node-sass src/app.scss dist/app.css --watch --include-path src",
-    "sass-build": "node-sass src/app.scss dist/app.css"
+    "budo":
+      "budo src/app.ts:app.js --live --open --dir ./dist -- -p [ tsify ] -t [ babelify --presets [ es2015 ] --extensions .ts ] -t [ stringify --extensions [ .html ] ]",
+    "browserify":
+      "browserify src/app.ts -p [ tsify ] -t [ babelify --presets [ es2015 ] --extensions .ts .ts ]  -t [ stringify --extensions [ .html ] ] -o dist/app.js",
+    "sass-dev":
+      "npm run sass-build && node-sass src/app.scss dist/app.css --watch --include-path src",
+    "sass-build": "node-sass src/app.scss dist/app.css",
+    "format": "yarn format-tslint && yarn format-prettier",
+    "format-tslint": "tslint -p . --config tslint.json",
+    "format-prettier": "prettier --write \"**/*.{ts,json}\""
   },
-  "keywords": [
-    "todo",
-    "chat",
-    "natural",
-    "language",
-    "nlp",
-    "bot"
-  ],
+  "keywords": ["todo", "chat", "natural", "language", "nlp", "bot"],
   "author": "whenther",
   "license": "MIT",
   "dependencies": {
@@ -45,11 +44,15 @@
     "mocha": "^2.5.1",
     "ncp": "^2.0.0",
     "node-sass": "^3.7.0",
+    "prettier": "^1.11.1",
     "rimraf": "^2.5.2",
     "stringify": "^5.1.0",
     "ts-node": "^0.7.3",
     "tsify": "^0.16.0",
-    "typescript": "^1.9.0-dev.20160606-1.0",
+    "tslint-config-airbnb": "^5.8.0",
+    "tslint-config-prettier": "^1.10.0",
+    "tslint": "^5.9.1",
+    "typescript": "^2.8.1",
     "typings": "^1.0.4"
   }
 }
