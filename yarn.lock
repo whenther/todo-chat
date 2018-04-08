@@ -2838,9 +2838,9 @@ nan@^2.3.0, nan@^2.3.2:
   version "2.10.0"
   resolved "https://registry.yarnpkg.com/nan/-/nan-2.10.0.tgz#96d0cd610ebd58d4b4de9cc0c6828cda99c7548f"
 
-natural-language-commander@0.1.2:
-  version "0.1.2"
-  resolved "https://registry.yarnpkg.com/natural-language-commander/-/natural-language-commander-0.1.2.tgz#6d903d4c9cd32f5db75df6fb1af0615f4212f608"
+natural-language-commander@0.1.4:
+  version "0.1.4"
+  resolved "https://registry.yarnpkg.com/natural-language-commander/-/natural-language-commander-0.1.4.tgz#d141a079b920bc87e9f41ed1748120897b7ec77a"
   dependencies:
     babel-runtime "^6.9.2"
     lodash "^4.6.1"
