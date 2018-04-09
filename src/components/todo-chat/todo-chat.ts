@@ -1,6 +1,4 @@
-import lodash = require("lodash");
-
-import Bot from "../../services/bot";
+import Bot from "../../services/Bot";
 
 export interface IMessage {
   text: string;
